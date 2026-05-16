@@ -1,0 +1,19 @@
+{
+  "name": "lp-sport-backend",
+  "version": "8.0.0",
+  "description": "LP Sport — sistema de pedidos · backend",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

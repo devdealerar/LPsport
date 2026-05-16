@@ -1,0 +1,2664 @@
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import {
+  Package, Palette, Truck, Settings as SettingsIcon, Plus, Search,
+  CheckCircle2, Circle, ChevronRight, X, Edit3, Trash2, MessageCircle,
+  Sparkles, Calendar, MapPin, Phone, Activity,
+  ChevronDown, Download, Send, Eye, Hash, AlertTriangle, DollarSign,
+  Clock, UploadCloud, FileText, Paperclip, ArrowLeft, Folder, Building2,
+  ZoomIn, ClipboardPaste, ClipboardList, Printer, TrendingUp, Users, BarChart2,
+  Upload, Copy, ArrowUpDown
+} from "lucide-react";
+
+/* ================================================================
+   LP SPORT v3 — futbol design
+   Studio Pro: depth · 3D tilt · automation · restraint
+   ================================================================ */
+
+const C = {
+  // Dark theme — premium professional
+  bg:           "#0a0a0a",
+  bgSoft:       "#0e0e10",
+  surface:      "#121214",
+  surface2:     "#1a1a1d",
+  surface3:     "#222226",
+  surface4:     "#2a2a2f",
+  border:       "rgba(255,255,255,0.06)",
+  borderStrong: "rgba(255,255,255,0.12)",
+  text:         "#f3f3f5",
+  textDim:      "#a1a1a8",
+  textMute:     "#5a5a62",
+  accent:       "#5EA9E8",
+  accentHover:  "#79BAEE",
+  accentDim:    "#3d7ab0",
+  accentSoft:   "rgba(94,169,232,0.10)",
+  accentGlow:   "rgba(94,169,232,0.22)",
+  ok:           "#22c55e",
+  warn:         "#f59e0b",
+  danger:       "#ef4444",
+  dangerSoft:   "rgba(239,68,68,0.08)",
+  info:         "#5EA9E8",
+  gradient:     "linear-gradient(135deg, #5EA9E8 0%, #3d7ab0 100%)"
+};
+
+// ── Elevation system for DARK theme: inner highlights + soft drop shadows ──
+const ELEV = {
+  card:       "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 0 0 1px rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.3)",
+  cardHover:  "0 1px 0 0 rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(255,255,255,0.07), 0 12px 32px rgba(0,0,0,0.4), 0 0 24px rgba(94,169,232,0.08)",
+  floating:   "0 1px 0 0 rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(255,255,255,0.06), 0 24px 64px rgba(0,0,0,0.55)",
+  raised:     "0 1px 0 0 rgba(255,255,255,0.08) inset, 0 1px 2px rgba(0,0,0,0.3)",
+  highlight:  "0 1px 0 0 rgba(255,255,255,0.04) inset",
+  glass:      "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 0 0 1px rgba(255,255,255,0.05)",
+  pressed:    "inset 0 2px 6px rgba(0,0,0,0.4)"
+};
+
+// Tabular numbers + font smoothing for premium typography
+const PREMIUM_FONT = { fontFeatureSettings: "'tnum' 1, 'cv11' 1, 'ss01' 1", WebkitFontSmoothing: "antialiased", MozOsxFontSmoothing: "grayscale" };
+
+// ── helpers ──────────────────────────────────────────────────────
+const ARS = (n) => "$\u202F" + Math.round(Number(n) || 0).toLocaleString("es-AR");
+const today = () => new Date().toISOString().slice(0, 10);
+const daysFromNow = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const daysDiff = (dateStr) => Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+const getInitials = (name = "") => {
+  const w = name.replace(/[^a-zA-Z0-9\sÁÉÍÓÚÑáéíóúñ]/g, "").trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return "?";
+  return w.length === 1 ? w[0].slice(0, 2).toUpperCase() : (w[0][0] + w[w.length - 1][0]).toUpperCase();
+};
+
+// ── Roster parser ────────────────────────────────────────────────
+const TALLES_ARR = ["XXXL", "XXL", "XL", "L", "M", "S", "XS"];
+const SKIP_LINE_REGEX = /^(hola|buenas?|buen\s+d[ií]a|necesito|para|equipo|gracias|ok|si|listo|chau|saludos|nombre[s]?|talle[s]?|cantidad|listado|jugadores|lista|n[uú]mero[s]?|total)\b/i;
+const newRowId = () => `R-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+const newRow = (over = {}) => ({ id: newRowId(), nombre: "", cantidad: 1, talle: "", adicionales: "", total: 0, ...over });
+const ROSTER_KEYWORDS = [
+  { re: /\bcapit[aá]n\b/i, label: "capitán" }, { re: /\barquer[oa]\b/i, label: "arquero" },
+  { re: /\bdt\b/i, label: "DT" }, { re: /\bt[eé]cnico\b/i, label: "técnico" },
+  { re: /\bmanga\s+larga\b/i, label: "manga larga" }, { re: /\bmanga\s+corta\b/i, label: "manga corta" },
+  { re: /\bbordad[oa]\b/i, label: "bordado" }, { re: /\bestampad[oa]\b/i, label: "estampado" },
+  { re: /\bsin\s+nombre\b/i, label: "sin nombre" }, { re: /\bsin\s+n[uú]mero\b/i, label: "sin número" }
+];
+function parseWhatsAppRoster(text) {
+  if (!text?.trim()) return [];
+  return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).reduce((rows, line) => {
+    let clean = line.replace(/^[\-\*•·▪▫►]+\s*/, "").replace(/^\d+[\)\.\-]\s+/, "").trim();
+    if (!clean || clean.length < 2 || SKIP_LINE_REGEX.test(clean)) return rows;
+    clean = clean.replace(/\$\s*[\d\.\,]+/g, "").trim();
+    let work = clean.replace(/[\(\)]/g, " ").replace(/[,;|]/g, " ").replace(/\s+-\s+/g, " ").replace(/\s*[/]\s*/g, " ").replace(/\s+/g, " ").trim();
+    let numero = "";
+    const numKW = work.match(/(?:#|n[°º]\.?|nro\.?|n[uú]mero)\s*(\d{1,3})\b/i);
+    if (numKW) { numero = numKW[1]; work = work.replace(numKW[0], " ").trim(); }
+    let talle = "";
+    const talleKW = work.match(/\b(?:talle|tal\.|t\.|t:)\s*(XXXL|XXL|XL|XXS|XS|S|M|L)\b/i);
+    if (talleKW) { talle = talleKW[1].toUpperCase(); work = work.replace(talleKW[0], " ").trim(); }
+    else {
+      const matches = [...work.matchAll(/\b(XXXL|XXL|XL|XXS|XS|L|M|S)\b/g)];
+      if (matches.length) { const lm = matches[matches.length - 1]; talle = lm[0].toUpperCase(); work = (work.slice(0, lm.index) + " " + work.slice(lm.index + lm[0].length)).replace(/\s+/g, " ").trim(); }
+    }
+    let cantidad = 1;
+    const cantMatch = work.match(/(?:^|\s)[x×](\d+)|\((\d+)\)/i);
+    if (cantMatch) { cantidad = parseInt(cantMatch[1] || cantMatch[2]); work = work.replace(cantMatch[0], " ").trim(); }
+    if (!numero) {
+      const tn = work.match(/\s(\d{1,3})\s*$/);
+      if (tn) { numero = tn[1]; work = work.replace(/\s+\d{1,3}\s*$/, "").trim(); }
+      else if (/^\d{1,3}$/.test(work)) { cantidad = parseInt(work); work = ""; }
+    }
+    const extras = ROSTER_KEYWORDS.filter(k => { if (k.re.test(work)) { work = work.replace(k.re, " ").trim(); return true; } return false; }).map(k => k.label);
+    const nombre = work.replace(/[:.]+/g, " ").replace(/\s+/g, " ").trim();
+    if (!nombre && !talle && !numero) return rows;
+    let adicionales = numero ? `Nº\u00A0${numero}` : "";
+    if (extras.length) adicionales = (adicionales ? adicionales + " · " : "") + extras.join(" · ");
+    return [...rows, newRow({ nombre, cantidad, talle, adicionales })];
+  }, []);
+}
+
+// ── Seed data ────────────────────────────────────────────────────
+const seedCustomers = [
+  { id: "CLI-001", nombre: "Juan Pérez", equipo: "Club Atlético San Martín", whatsapp: "5491123456789", totalGastado: 540000, pedidos: 3, ciudad: "Berazategui" },
+  { id: "CLI-002", nombre: "María González", equipo: "Los Cóndores Vóley", whatsapp: "5491145678912", totalGastado: 380000, pedidos: 2, ciudad: "Quilmes" },
+  { id: "CLI-003", nombre: "Rodrigo Sánchez", equipo: "Real Berazategui FC", whatsapp: "5491167891234", totalGastado: 890000, pedidos: 5, ciudad: "Berazategui" },
+  { id: "CLI-004", nombre: "Lucía Romero", equipo: "Academia Norte Básquet", whatsapp: "5491178912345", totalGastado: 240000, pedidos: 2, ciudad: "Avellaneda" },
+  { id: "CLI-005", nombre: "Diego Maldonado", equipo: "Wanderers Rugby", whatsapp: "5491189123456", totalGastado: 720000, pedidos: 4, ciudad: "Berazategui" },
+];
+const seedEmpresas = [
+  { id: "EMP-001", nombre: "Real Berazategui FC",      color: "#5EA9E8", createdAt: "2025-12-10", notas: "Cliente desde 2024. Manejan torneos de primera y reserva." },
+  { id: "EMP-002", nombre: "Club Atlético San Martín", color: "#ef4444", createdAt: "2026-01-08", notas: "" },
+  { id: "EMP-003", nombre: "Wanderers Rugby",          color: "#c5a663", createdAt: "2026-02-15", notas: "Equipo de rugby, bordados con escudo del club." }
+];
+const seedOrders = [
+  { id: "PED-2026-042", clienteId: "CLI-001", cliente: "Club Atlético San Martín", delegado: "Juan Pérez", whatsapp: "5491123456789", productos: [{ tipo: "Camiseta titular", cantidad: 18 }, { tipo: "Short titular", cantidad: 18 }], total: 360000, costo: 198000, sena: 180000, saldo: 180000, estado: "produccion", fechaPedido: daysFromNow(-12), fechaEntrega: daysFromNow(4), diseno: "EP-DSG-042", observaciones: "Apurar — debutan en torneo el 20.", colores: ["#c5ff3b", "#000000"], roster: [{ id: "R-s1", nombre: "Juan Pérez", talle: "L", cantidad: 1, adicionales: "Nº 10 · capitán", total: 20000 }, { id: "R-s2", nombre: "Carlos Sosa", talle: "XL", cantidad: 1, adicionales: "Nº 4", total: 20000 }, { id: "R-s3", nombre: "Diego Maradona", talle: "L", cantidad: 1, adicionales: "Nº 10", total: 20000 }, { id: "R-s4", nombre: "Lionel Messi", talle: "S", cantidad: 1, adicionales: "Nº 10", total: 20000 }, { id: "R-s5", nombre: "Rodrigo Bentancur", talle: "M", cantidad: 1, adicionales: "Nº 14", total: 20000 }] },
+  { id: "PED-2026-041", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Conjunto suplente", cantidad: 22 }], total: 528000, costo: 290400, sena: 264000, saldo: 264000, estado: "aprobacion", fechaPedido: daysFromNow(-7), fechaEntrega: daysFromNow(14), diseno: "EP-DSG-041", observaciones: "Cliente pidió ver mockup con número 10.", colores: ["#ffffff", "#0a4d9c"] },
+  { id: "PED-2026-040", clienteId: "CLI-005", cliente: "Wanderers Rugby", delegado: "Diego Maldonado", whatsapp: "5491189123456", productos: [{ tipo: "Buzo polar bordado", cantidad: 30 }], total: 720000, costo: 432000, sena: 360000, saldo: 360000, estado: "produccion", fechaPedido: daysFromNow(-18), fechaEntrega: daysFromNow(1), diseno: "EP-DSG-040", observaciones: "Bordado con escudo del club.", colores: ["#2c1810", "#c5a663"] },
+  { id: "PED-2026-039", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Camiseta sublimada", cantidad: 14 }], total: 280000, costo: 154000, sena: 140000, saldo: 0, estado: "aprobacion", fechaPedido: daysFromNow(-20), fechaEntrega: daysFromNow(-1), diseno: "EP-DSG-039", observaciones: "Pagado completo en la seña.", colores: ["#ff5a6e", "#000000"] },
+  { id: "PED-2026-038", clienteId: "CLI-001", cliente: "Club Atlético San Martín", delegado: "Juan Pérez", whatsapp: "5491123456789", productos: [{ tipo: "Camiseta + short reversible", cantidad: 12 }], total: 360000, costo: 198000, sena: 180000, saldo: 180000, estado: "diseno", fechaPedido: daysFromNow(-3), fechaEntrega: daysFromNow(21), diseno: "EP-DSG-043", observaciones: "Diseño en proceso. Mandaron referencias por WP.", colores: ["#000000", "#c5ff3b"] },
+  { id: "PED-2026-037", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Camiseta arquero", cantidad: 3 }], total: 75000, costo: 41250, sena: 75000, saldo: 0, estado: "entrega", fechaPedido: daysFromNow(-35), fechaEntrega: daysFromNow(-20), diseno: "EP-DSG-037", observaciones: "Entregado en local. Cliente conforme.", colores: ["#ffaa00", "#000000"] }
+];
+const seedDesigns = [];
+const estadoConfig = {
+  diseno:     { label: "Diseño",     color: C.accent,  bg: C.accentSoft, order: 0 },
+  produccion: { label: "Producción", color: C.warn,    bg: "rgba(245,158,11,0.08)", order: 1 },
+  aprobacion: { label: "Aprobación", color: "#a855f7", bg: "rgba(168,85,247,0.08)", order: 2 },
+  entrega:    { label: "Entrega",    color: C.ok,      bg: "rgba(34,197,94,0.08)", order: 3 }
+};
+const estadoFlow = ["diseno", "produccion", "aprobacion", "entrega"];
+
+// ── Storage / sync layer ─────────────────────────────────────────
+// Module-level mode detection so all hooks share the same understanding.
+// "checking"  → still probing /api/me on first load
+// "api"       → backend is online and user is authenticated
+// "login"     → backend is online, user needs to log in
+// "local"     → no backend reachable (standalone HTML / desktop mode)
+const STORAGE_MODE_EVENT = "lpsport:storage-mode-change";
+let storageMode = "checking";
+const storageListeners = new Set();
+const setStorageMode = (m) => {
+  if (storageMode === m) return;
+  storageMode = m;
+  storageListeners.forEach(fn => { try { fn(m); } catch {} });
+};
+const useStorageMode = () => {
+  const [m, set] = useState(storageMode);
+  useEffect(() => { storageListeners.add(set); return () => storageListeners.delete(set); }, []);
+  return m;
+};
+
+// Detect mode once on app boot.
+const probeApiOnce = (() => {
+  let probed = false;
+  return async () => {
+    if (probed) return;
+    probed = true;
+    try {
+      const r = await fetch("/api/me", { credentials: "include" });
+      if (r.ok) setStorageMode("api");
+      else if (r.status === 401) setStorageMode("login");
+      else setStorageMode("local");
+    } catch {
+      setStorageMode("local");
+    }
+  };
+})();
+
+// Replacement for usePersistedState: works both online (API) and offline (localStorage cache).
+function usePersistedState(key, initial) {
+  const [state, setState] = useState(initial);
+  const loaded = useRef(false);
+  const lastSaved = useRef(null);
+  const mode = useStorageMode();
+
+  // Initial load: try localStorage cache first (instant), then refresh from API if online
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Try local cache for instant paint
+      try {
+        if (typeof localStorage !== "undefined") {
+          const cached = localStorage.getItem(key);
+          if (cached && !cancelled) setState(JSON.parse(cached));
+        }
+      } catch {}
+
+      // Try the API if reachable
+      if (mode === "api") {
+        try {
+          const r = await fetch(`/api/data/${encodeURIComponent(key)}`, { credentials: "include" });
+          if (r.ok && !cancelled) {
+            const d = await r.json();
+            if (d?.value) {
+              const remote = JSON.parse(d.value);
+              setState(remote);
+              try { localStorage.setItem(key, d.value); } catch {}
+            }
+          }
+        } catch {}
+      }
+      loaded.current = true;
+    })();
+    return () => { cancelled = true; };
+  }, [key, mode]);
+
+  // Save: always to localStorage, and to API if available
+  useEffect(() => {
+    if (!loaded.current) return;
+    const value = JSON.stringify(state);
+    if (value === lastSaved.current) return;
+    lastSaved.current = value;
+    try { if (typeof localStorage !== "undefined") localStorage.setItem(key, value); } catch {}
+    if (mode === "api") {
+      fetch(`/api/data/${encodeURIComponent(key)}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value })
+      }).then(r => {
+        if (r.status === 401) setStorageMode("login");
+      }).catch(() => {
+        // Network glitch — keep in local cache, retry next change
+      });
+    }
+  }, [key, state, mode]);
+
+  return [state, setState];
+}
+
+// ── Backup / Restore ─────────────────────────────────────────────
+// Exports a single JSON file with all the user's data. Restore reads it back.
+const exportBackup = ({ orders, customers, designs, empresas }) => {
+  const data = {
+    __format: "lp-sport-backup",
+    __version: 7,
+    exportedAt: new Date().toISOString(),
+    orders,
+    customers,
+    designs,
+    empresas
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const ts = new Date().toISOString().split("T")[0];
+  a.download = `lp-sport-backup-${ts}.json`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+};
+
+const importBackup = (file, { setOrders, setDesigns, setEmpresas }) => {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.__format !== "lp-sport-backup") {
+        toast.err("Archivo inválido — no es un backup de LP Sport");
+        return;
+      }
+      if (!confirm(`¿Restaurar backup del ${data.exportedAt?.split("T")[0]}? Se reemplazarán todos los datos actuales.`)) return;
+      if (Array.isArray(data.orders)) setOrders(data.orders);
+      if (Array.isArray(data.designs)) setDesigns(data.designs);
+      if (Array.isArray(data.empresas)) setEmpresas(data.empresas);
+      toast.ok(`Restaurado · ${data.orders?.length || 0} pedidos, ${data.empresas?.length || 0} empresas, ${data.designs?.length || 0} diseños`);
+    } catch (err) {
+      toast.err("Error leyendo el backup: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+};
+
+// Download a copy of the running HTML, baking the user's current data into the file.
+// Result: a single .html that opens offline and already contains their pedidos/empresas/diseños.
+const downloadSelf = () => {
+  try {
+    // Snapshot all v7 keys from localStorage (only this app's data)
+    const dataSeed = {};
+    const v7Prefix = "lpsport:";
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(v7Prefix)) dataSeed[k] = localStorage.getItem(k);
+    }
+    // Build a seed <script> that re-populates localStorage when the downloaded HTML opens
+    const seedScript = `<script>(function(){try{var d=${JSON.stringify(dataSeed)};for(var k in d){localStorage.setItem(k,d[k]);}}catch(e){}})();<\/script>`;
+    // Grab the current page's HTML and inject the seed before the storage polyfill
+    let html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+    // The polyfill block is anchored by a unique comment
+    const anchor = "<!-- Storage polyfill";
+    if (html.includes(anchor)) {
+      html = html.replace(anchor, seedScript + "\n  " + anchor);
+    }
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "lp-sport.html";
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    toast.ok("App descargada · Doble click para abrir desde tu escritorio");
+  } catch (err) {
+    toast.err("No se pudo descargar: " + err.message);
+  }
+};
+
+// ── Primitive components ─────────────────────────────────────────
+
+// Micro-interaction wrapper
+const Press = ({ children, onClick, className = "", style = {}, title, disabled }) => (
+  <div
+    onClick={disabled ? undefined : onClick}
+    title={title}
+    className={"cursor-pointer select-none transition-all duration-100 active:scale-[0.97] " + className}
+    style={{ opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? "none" : "auto", ...style }}
+  >
+    {children}
+  </div>
+);
+
+const Card = ({ children, className = "", style = {}, hover = false, onClick, elevated = false }) => (
+  <div
+    onClick={onClick}
+    className={"rounded-2xl " + (hover ? "cursor-pointer card-hover " : "") + className}
+    style={{
+      background: C.surface,
+      boxShadow: elevated ? ELEV.cardHover : ELEV.card,
+      transition: "box-shadow 240ms cubic-bezier(.2,.8,.2,1), transform 240ms cubic-bezier(.2,.8,.2,1)",
+      ...style
+    }}
+  >
+    {children}
+  </div>
+);
+
+// ── Tilt3D: subtle 3D card tilt following mouse position (premium feel, max 6° rotation) ──
+const Tilt3D = ({ children, className = "", style = {}, intensity = 8, onClick, scale = 1.012, glowColor = "rgba(94,169,232,0.12)" }) => {
+  const ref = useRef(null);
+  const onMove = (e) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const rx = (py - 0.5) * -intensity;
+    const ry = (px - 0.5) * intensity;
+    ref.current.style.transform = `perspective(1100px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${scale})`;
+    // Parallax glow follows mouse — light theme uses blue tint
+    const glow = ref.current.querySelector("[data-tilt-glow]");
+    if (glow) {
+      glow.style.background = `radial-gradient(480px circle at ${px * 100}% ${py * 100}%, ${glowColor}, transparent 55%)`;
+      glow.style.opacity = "1";
+    }
+    // Slight inner shine on the top edge (specular highlight)
+    const shine = ref.current.querySelector("[data-tilt-shine]");
+    if (shine) {
+      shine.style.opacity = String(0.6 - py * 0.5);
+    }
+  };
+  const onLeave = () => {
+    if (!ref.current) return;
+    ref.current.style.transform = "perspective(1100px) rotateX(0deg) rotateY(0deg) scale(1)";
+    const glow = ref.current.querySelector("[data-tilt-glow]");
+    if (glow) glow.style.opacity = "0";
+    const shine = ref.current.querySelector("[data-tilt-shine]");
+    if (shine) shine.style.opacity = "0";
+  };
+  return (
+    <div
+      ref={ref}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      onClick={onClick}
+      className={"relative " + className}
+      style={{
+        transformStyle: "preserve-3d",
+        transition: "transform 420ms cubic-bezier(.2,.8,.2,1)",
+        willChange: "transform",
+        ...style
+      }}
+    >
+      {children}
+      <div data-tilt-shine className="absolute inset-x-0 top-0 h-1/2 pointer-events-none rounded-t-2xl" style={{ opacity: 0, transition: "opacity 280ms ease", background: "linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%)" }} />
+      <div data-tilt-glow className="absolute inset-0 rounded-2xl pointer-events-none" style={{ opacity: 0, transition: "opacity 280ms ease" }} />
+    </div>
+  );
+};
+
+const Badge = ({ children, color = C.textDim, bg = C.surface3, dot = false }) => (
+  <span className="inline-flex items-center gap-1.5 px-2 py-[3px] rounded-md text-[10px] font-bold uppercase tracking-widest" style={{ color, background: bg }}>
+    {dot && <span className="w-1.5 h-1.5 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />}
+    {children}
+  </span>
+);
+
+const Btn = ({ children, onClick, variant = "secondary", icon: Icon, disabled, className = "", size = "md" }) => {
+  const base = "inline-flex items-center gap-2 font-semibold rounded-xl select-none disabled:opacity-40 disabled:cursor-not-allowed ";
+  const sz = size === "sm" ? "px-2.5 py-1.5 text-[11px]" : "px-3.5 py-[9px] text-[12.5px]";
+  const v = {
+    primary:   { background: "linear-gradient(180deg, #6EB5EE 0%, #5EA9E8 100%)", color: "#031020", boxShadow: "0 1px 0 0 rgba(255,255,255,0.25) inset, 0 2px 8px rgba(94,169,232,0.30), 0 0 0 1px rgba(94,169,232,0.4)" },
+    secondary: { background: C.surface2, color: C.text, boxShadow: ELEV.raised + ", 0 0 0 1px " + C.border },
+    ghost:     { background: "transparent", color: C.textDim, boxShadow: "0 0 0 0 transparent" },
+    danger:    { background: C.dangerSoft, color: C.danger, boxShadow: ELEV.highlight + ", 0 0 0 1px " + C.danger + "33" },
+    accent:    { background: C.accentSoft, color: C.accent, boxShadow: ELEV.highlight + ", 0 0 0 1px " + C.accent + "33" }
+  };
+  return (
+    <button type="button" onClick={onClick} disabled={disabled}
+      className={base + sz + " " + className}
+      style={{ ...v[variant], transition: "transform 120ms cubic-bezier(.2,.8,.2,1), filter 120ms ease, box-shadow 200ms ease" }}
+      onMouseEnter={e => {
+        if (disabled) return;
+        e.currentTarget.style.filter = "brightness(1.10)";
+        e.currentTarget.style.transform = "translateY(-1px)";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.filter = "none";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+      onMouseDown={e => { if (!disabled) e.currentTarget.style.transform = "translateY(0) scale(0.98)"; }}
+      onMouseUp={e => { if (!disabled) e.currentTarget.style.transform = "translateY(-1px)"; }}
+    >
+      {Icon && <Icon size={size === "sm" ? 12 : 14} strokeWidth={2.2} />}
+      {children}
+    </button>
+  );
+};
+
+const Input = ({ label, hint, ...props }) => (
+  <label className="block">
+    {label && <div className="text-[10.5px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: C.textDim }}>{label}</div>}
+    <input
+      {...props}
+      className="w-full px-3 py-2 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#5EA9E8]/40 transition-all"
+      style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, fontFamily: props.type === "number" ? "'JetBrains Mono', monospace" : "inherit" }}
+    />
+    {hint && <div className="text-[10.5px] mt-1" style={{ color: C.textMute }}>{hint}</div>}
+  </label>
+);
+
+const Select = ({ label, children, ...props }) => (
+  <label className="block">
+    {label && <div className="text-[10.5px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: C.textDim }}>{label}</div>}
+    <div className="relative">
+      <select {...props} className="w-full px-3 py-2 rounded-xl text-sm outline-none appearance-none pr-8 focus:ring-1 focus:ring-[#5EA9E8]/40 transition-all" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }}>
+        {children}
+      </select>
+      <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.textMute }} />
+    </div>
+  </label>
+);
+
+// Stat chip with optional sparkline feel
+const StatChip = ({ label, value, color = C.text, icon: Icon, accent = false }) => (
+  <div className="flex flex-col gap-0.5 p-3 rounded-xl" style={{ background: accent ? C.accentSoft : C.surface2, border: `1px solid ${accent ? C.accent + "33" : C.border}` }}>
+    <div className="flex items-center gap-1.5 mb-1">
+      {Icon && <Icon size={12} style={{ color: accent ? C.accent : C.textMute }} />}
+      <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: C.textDim }}>{label}</span>
+    </div>
+    <div className="text-[17px] font-bold leading-none" style={{ color, fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
+  </div>
+);
+
+// Divider
+// ── LP brand logo (custom SVG wordmark) ──────────────────────────
+// ── LP 3D Logo: real extrusion via stacked Z layers + mouse tracking ──
+// The front layer is pure white; back layers progressively darker to simulate the
+// SIDE of an extruded letter. When rotated by mouse, the side faces become visible.
+// LP glyph: italic-leaning forms with rounded terminals (replaces the previous geometric rects).
+// All corners use cubic Bezier curves for soft transitions. The italic slant is applied in the parent transform.
+const LP_GLYPH_PATHS = {
+  // L: stem + foot, all 6 outer corners rounded
+  L: "M 27 22 L 30 22 C 33 22 35 24 35 27 L 35 57 L 59 57 C 62 57 64 59 64 62 L 64 65 C 64 68 62 70 59 70 L 27 70 C 24 70 22 68 22 65 L 22 27 C 22 24 24 22 27 22 Z",
+  // P: stem + fuller circular bowl, evenodd cuts inner counter
+  P: "M 52 22 L 60 22 C 78 22 84 28 84 36 C 84 44 78 50 60 50 L 60 65 C 60 68 58 70 55 70 L 52 70 C 49 70 47 68 47 65 L 47 27 C 47 24 49 22 52 22 Z M 60 30 L 68 30 C 73 30 75 33 75 36 C 75 39 73 42 68 42 L 60 42 Z"
+};
+
+const LPGlyph = ({ fill }) => (
+  <g transform="skewX(-10) translate(6 0)" fill={fill}>
+    <path d={LP_GLYPH_PATHS.L} />
+    <path d={LP_GLYPH_PATHS.P} fillRule="evenodd" />
+  </g>
+);
+
+const LP3DLogo = ({ size = 44 }) => {
+  const wrapRef = useRef(null);
+  const innerRef = useRef(null);
+  const [spinning, setSpinning] = useState(false);
+
+  const onMove = (e) => {
+    if (spinning || !wrapRef.current || !innerRef.current) return;
+    const rect = wrapRef.current.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const rx = (py - 0.5) * -32;   // up to ±16°
+    const ry = (px - 0.5) * 36;    // up to ±18°
+    innerRef.current.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+    // Move the soft floor shadow opposite to the tilt for parallax
+    const shadow = wrapRef.current.querySelector("[data-logo-shadow]");
+    if (shadow) {
+      shadow.style.transform = `translate(${(px - 0.5) * -6}px, ${(py - 0.5) * -3 + 4}px) scaleX(${1 - Math.abs(ry) * 0.005})`;
+      shadow.style.opacity = "0.55";
+    }
+  };
+
+  const onLeave = () => {
+    if (spinning || !innerRef.current) return;
+    innerRef.current.style.transform = "rotateX(0deg) rotateY(0deg)";
+    const shadow = wrapRef.current?.querySelector("[data-logo-shadow]");
+    if (shadow) {
+      shadow.style.transform = "translate(0, 4px) scaleX(1)";
+      shadow.style.opacity = "0.35";
+    }
+  };
+
+  const onClick = () => {
+    if (spinning || !innerRef.current) return;
+    setSpinning(true);
+    innerRef.current.style.transition = "transform 720ms cubic-bezier(.4,.0,.2,1)";
+    innerRef.current.style.transform = "rotateX(0deg) rotateY(360deg)";
+    setTimeout(() => {
+      if (!innerRef.current) return;
+      innerRef.current.style.transition = "none";
+      innerRef.current.style.transform = "rotateX(0deg) rotateY(0deg)";
+      // Force reflow then restore transition
+      void innerRef.current.offsetHeight;
+      innerRef.current.style.transition = "transform 280ms cubic-bezier(.2,.8,.2,1)";
+      setSpinning(false);
+    }, 720);
+  };
+
+  // 7 layers from back (darkest) to front (pure white)
+  const layers = 7;
+  return (
+    <div
+      ref={wrapRef}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      onClick={onClick}
+      style={{
+        width: size,
+        height: size,
+        perspective: 520,
+        cursor: "pointer",
+        flexShrink: 0,
+        position: "relative"
+      }}
+    >
+      {/* Soft floor shadow under the logo — provides ambient grounding */}
+      <div data-logo-shadow style={{
+        position: "absolute",
+        left: "10%",
+        right: "10%",
+        bottom: -4,
+        height: 8,
+        borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(94,169,232,0.40) 0%, transparent 70%)",
+        filter: "blur(4px)",
+        opacity: 0.35,
+        transform: "translate(0, 4px)",
+        transition: "opacity 240ms ease, transform 280ms cubic-bezier(.2,.8,.2,1)",
+        pointerEvents: "none"
+      }} />
+
+      <div
+        ref={innerRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          transformStyle: "preserve-3d",
+          transition: "transform 280ms cubic-bezier(.2,.8,.2,1)",
+          willChange: "transform"
+        }}
+      >
+        {Array.from({ length: layers }, (_, i) => {
+          const isFront = i === layers - 1;
+          // Position back→front: back is most negative Z, front is 0
+          const depth = (i - (layers - 1)) * 1.8;
+          // Color: back layers darker, front pure white
+          let fill;
+          if (isFront) {
+            fill = "#ffffff";
+          } else {
+            const t = i / (layers - 1);   // 0 (back) → ~1 (front)
+            const gray = Math.round(35 + t * 200);
+            fill = `rgb(${gray},${gray},${gray + 5})`;
+          }
+          return (
+            <svg
+              key={i}
+              viewBox="0 0 100 100"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{
+                position: "absolute",
+                inset: 0,
+                transform: `translateZ(${depth}px)`,
+                width: "100%",
+                height: "100%",
+                pointerEvents: "none"
+              }}
+            >
+              <LPGlyph fill={fill} />
+            </svg>
+          );
+        })}
+        {/* Specular highlight on top of front face — premium gloss */}
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{
+          position: "absolute", inset: 0, width: "100%", height: "100%",
+          transform: `translateZ(${(layers - 0.5) * 1.8}px)`,
+          mixBlendMode: "screen",
+          pointerEvents: "none"
+        }}>
+          <defs>
+            <linearGradient id="lpshine" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.6)" />
+              <stop offset="50%" stopColor="rgba(255,255,255,0)" />
+            </linearGradient>
+          </defs>
+          <LPGlyph fill="url(#lpshine)" />
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+// Back-compat alias (in case the brand mark is still referenced as LPLogo somewhere)
+const LPLogo = LP3DLogo;
+
+const Divider = ({ className = "" }) => <div className={"h-px " + className} style={{ background: C.border }} />;
+
+// Section label
+const SectionLabel = ({ children, className = "" }) => (
+  <div className={"text-[10px] font-bold uppercase tracking-[0.18em] mb-2 " + className} style={{ color: C.textMute }}>{children}</div>
+);
+
+// ── File upload ──────────────────────────────────────────────────
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const fmtBytes = (b) => b < 1024 ? `${b}B` : b < 1048576 ? `${(b / 1024).toFixed(0)}KB` : `${(b / 1048576).toFixed(1)}MB`;
+
+const ArchivoUpload = ({ archivo, onChange }) => {
+  const inputRef = useRef(null);
+  const [drag, setDrag] = useState(false);
+  const handleFile = (f) => {
+    if (!f) return;
+    if (f.size > MAX_FILE_BYTES) { toast.err(`Archivo demasiado grande (${fmtBytes(f.size)}). Máx: 50MB`); return; }
+    const reader = new FileReader();
+    reader.onload = e => onChange({ name: f.name, size: f.size, type: f.type || "application/octet-stream", dataUrl: e.target.result, uploadedAt: new Date().toISOString() });
+    reader.readAsDataURL(f);
+  };
+  if (archivo) {
+    const isImg = archivo.type?.startsWith("image/");
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+        {isImg && archivo.dataUrl
+          ? <img src={archivo.dataUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border" style={{ borderColor: C.border }} />
+          : <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface3, color: C.accent }}><FileText size={20} /></div>
+        }
+        <div className="flex-1 min-w-0">
+          <div className="text-[12.5px] font-semibold truncate" style={{ color: C.text }}>{archivo.name}</div>
+          <div className="text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{fmtBytes(archivo.size)} · {archivo.type.split("/")[1]?.toUpperCase()}</div>
+        </div>
+        <button onClick={() => onChange(null)} className="w-7 h-7 flex items-center justify-center rounded-lg transition-all hover:bg-red-500/10" style={{ color: C.textMute }}><X size={13} /></button>
+      </div>
+    );
+  }
+  return (
+    <>
+      <div onClick={() => inputRef.current?.click()} onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
+        onDrop={e => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }}
+        className="rounded-xl p-5 text-center cursor-pointer transition-all duration-150"
+        style={{ background: drag ? C.accentGlow : C.surface2, border: `1.5px dashed ${drag ? C.accent : C.border}` }}
+      >
+        <UploadCloud size={20} className="mx-auto mb-2" style={{ color: drag ? C.accent : C.textMute }} />
+        <div className="text-[12.5px] font-medium" style={{ color: C.text }}>Arrastrá o tocá para adjuntar</div>
+        <div className="text-[10.5px] mt-0.5" style={{ color: C.textMute }}>PNG · JPG · PDF · SVG · AI · PSD · hasta 50MB</div>
+      </div>
+      <input ref={inputRef} type="file" hidden accept="image/*,.pdf,.svg,.ai,.psd,.cdr,.eps" onChange={e => handleFile(e.target.files[0])} />
+    </>
+  );
+};
+
+// ── Sidebar ──────────────────────────────────────────────────────
+const NAV = [
+  { key: "pedidos",  label: "Pedidos",  icon: Package },
+  { key: "planillas",  label: "Planillas",  icon: ClipboardList },
+  { key: "diseno",   label: "LP design", icon: Palette },
+  { key: "entregas", label: "Entregas", icon: Truck }
+];
+
+const Sidebar = ({ page, setPage, orders, empresas }) => {
+  const lateCount = orders.filter(o => o.estado !== "entrega" && daysDiff(o.fechaEntrega) < 0).length;
+  const activeCount = orders.filter(o => o.estado !== "entrega").length;
+
+  return (
+    <aside className="w-[220px] shrink-0 flex flex-col h-screen sticky top-0" style={{ background: C.surface, borderRight: `1px solid ${C.border}` }}>
+      {/* Logo */}
+      <div className="px-5 pt-6 pb-5">
+        <div className="flex items-center gap-3">
+          <LP3DLogo size={44} />
+          <div>
+            <div className="text-[15px] leading-none tracking-[0.06em]" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>LP SPORT</div>
+            <div className="text-[9px] tracking-[0.18em] mt-1.5 lowercase" style={{ color: C.textDim, fontFamily: "'Barlow', sans-serif", fontWeight: 400, letterSpacing: "0.14em" }}>futbol design</div>
+          </div>
+        </div>
+      </div>
+
+      <Divider />
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+        <SectionLabel className="px-3 mb-3">Módulos</SectionLabel>
+        {NAV.map(({ key, label, icon: Icon }) => {
+          const active = page === key;
+          const badge = (key === "pedidos" || key === "entregas") && lateCount > 0 ? lateCount : null;
+          return (
+            <button key={key} onClick={() => setPage(key)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] transition-all duration-100 relative"
+              style={{ background: active ? C.accentSoft : "transparent", color: active ? C.accent : C.textDim, fontWeight: active ? 700 : 500, border: active ? `1px solid ${C.accent}22` : "1px solid transparent" }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = C.surface2; e.currentTarget.style.color = C.text; } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.textDim; } }}
+            >
+              {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full" style={{ background: C.accent, boxShadow: `2px 0 8px ${C.accentGlow}` }} />}
+              <Icon size={15} strokeWidth={active ? 2.4 : 1.8} />
+              <span className="flex-1 text-left">{label}</span>
+              {badge && <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-lg" style={{ background: C.danger + "22", color: C.danger }}>{badge}</span>}
+            </button>
+          );
+        })}
+      </nav>
+
+      <Divider />
+
+      {/* Persistent download-as-desktop-app trigger */}
+      <button
+        onClick={downloadSelf}
+        className="mx-3 my-3 px-3 py-2.5 rounded-xl flex items-center gap-2.5 transition-all"
+        style={{ background: C.surface2, color: C.textDim, boxShadow: ELEV.highlight }}
+        onMouseEnter={e => { e.currentTarget.style.color = C.accent; e.currentTarget.style.background = C.accentSoft; }}
+        onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.background = C.surface2; }}
+        title="Descargar la app a tu escritorio (.html)"
+      >
+        <Download size={13} strokeWidth={2.2} />
+        <div className="flex-1 text-left min-w-0">
+          <div className="text-[11.5px] font-semibold leading-tight">Descargar app</div>
+          <div className="text-[9.5px] mt-0.5" style={{ color: C.textMute }}>Para abrir desde escritorio</div>
+        </div>
+      </button>
+
+      <div className="px-4 py-4 flex items-center gap-2.5" style={{ borderTop: `1px solid ${C.border}` }}>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+          style={{ background: C.gradient, color: "#fff" }}>D</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[12px] font-semibold truncate" style={{ color: C.text }}>Diseñador</div>
+          <div className="text-[10px] truncate" style={{ color: C.textMute }}>LP Sport · Berazategui</div>
+        </div>
+        <SidebarFooterAction />
+      </div>
+    </aside>
+  );
+};
+
+// Conditional sidebar footer icon: shows logout when authenticated via API
+const SidebarFooterAction = () => {
+  const mode = useStorageMode();
+  if (mode !== "api") return <SettingsIcon size={13} style={{ color: C.textMute }} />;
+  const logout = async () => {
+    if (!confirm("¿Cerrar sesión?")) return;
+    try {
+      await fetch("/api/logout", { method: "POST", credentials: "include" });
+    } catch {}
+    setStorageMode("login");
+  };
+  return (
+    <button onClick={logout} title="Cerrar sesión" className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-white/5">
+      <ArrowLeft size={13} style={{ color: C.textMute }} />
+    </button>
+  );
+};
+
+// ── Topbar ───────────────────────────────────────────────────────
+const Topbar = ({ title, action, searchValue, onSearchChange, searchRef, searchPlaceholder }) => (
+  <div className="sticky top-0 z-20 px-8 py-5 flex items-center justify-between gap-4"
+    style={{
+      background: "rgba(8,8,8,0.72)",
+      backdropFilter: "blur(20px) saturate(140%)",
+      WebkitBackdropFilter: "blur(20px) saturate(140%)",
+      borderBottom: `1px solid ${C.border}`,
+      boxShadow: "0 1px 0 0 rgba(255,255,255,0.02) inset"
+    }}
+  >
+    <div className="min-w-0">
+      <h1 className="text-[22px] leading-none truncate" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.04em", fontWeight: 700 }}>{title}</h1>
+    </div>
+    <div className="flex items-center gap-2.5 shrink-0">
+      <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl w-72" style={{ background: C.surface, border: `1px solid ${C.border}`, boxShadow: "0 1px 0 0 rgba(255,255,255,0.03) inset" }}>
+        <Search size={13} style={{ color: C.textMute }} />
+        <input
+          ref={searchRef}
+          value={searchValue || ""}
+          onChange={onSearchChange}
+          placeholder={searchPlaceholder || "Buscar…"}
+          className="bg-transparent flex-1 outline-none text-[12.5px]"
+          style={{ color: C.text, ...PREMIUM_FONT }}
+        />
+        <kbd className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: C.surface3, color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>⌘K</kbd>
+      </div>
+      {action}
+    </div>
+  </div>
+);
+
+// ── Jersey mockup ────────────────────────────────────────────────
+const JerseyMockup = ({ colors, tipoPrenda = "Camiseta" }) => {
+  const [c1, c2, c3] = [colors[0] || "#888", colors[1] || colors[0] || "#666", colors[2] || "#fff"];
+  if (tipoPrenda === "Short") return (
+    <svg viewBox="0 0 200 200" className="w-full h-full" style={{ filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.5))" }}>
+      <defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor={c1} /><stop offset="100%" stopColor={c1} stopOpacity="0.85" /></linearGradient></defs>
+      <path d="M55 50 L145 50 L155 155 L115 158 L100 95 L85 158 L45 155 Z" fill="url(#sg)" stroke={c3} strokeWidth="0.5" strokeOpacity="0.3" />
+      <path d="M55 50 L145 50 L147 72 L53 72 Z" fill={c2} opacity="0.9" />
+    </svg>
+  );
+  if (tipoPrenda === "Buzo" || tipoPrenda === "Campera") return (
+    <svg viewBox="0 0 200 200" className="w-full h-full" style={{ filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.5))" }}>
+      <defs><linearGradient id="bg2" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0%" stopColor={c1} stopOpacity="0.95" /><stop offset="100%" stopColor={c1} stopOpacity="0.75" /></linearGradient></defs>
+      <path d="M35 50 L70 35 L80 75 L55 95 Z" fill={c2} /><path d="M165 50 L130 35 L120 75 L145 95 Z" fill={c2} />
+      <path d="M70 35 L82 45 Q100 53 118 45 L130 35 L138 55 L138 175 L62 175 L62 55 Z" fill="url(#bg2)" />
+      <path d="M82 45 Q100 53 118 45 L114 60 Q100 65 86 60 Z" fill={c3} opacity="0.9" />
+      <line x1="100" y1="55" x2="100" y2="175" stroke={c3} strokeWidth="0.8" opacity="0.3" />
+      <rect x="88" y="100" width="24" height="28" rx="3" fill={c2} opacity="0.5" />
+    </svg>
+  );
+  // Camiseta default
+  return (
+    <svg viewBox="0 0 200 200" className="w-full h-full" style={{ filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.5))" }}>
+      <defs><linearGradient id="jg" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0%" stopColor={c1} stopOpacity="0.95" /><stop offset="100%" stopColor={c1} stopOpacity="0.75" /></linearGradient></defs>
+      <path d="M45 48 L72 32 L82 72 L55 92 Z" fill={c2} />
+      <path d="M155 48 L128 32 L118 72 L145 92 Z" fill={c2} />
+      <path d="M72 32 L84 44 Q100 52 116 44 L128 32 L138 52 L138 172 L62 172 L62 52 Z" fill="url(#jg)" />
+      <path d="M84 44 Q100 52 116 44 L111 57 Q100 62 89 57 Z" fill={c3} opacity="0.9" />
+      <rect x="98" y="57" width="4" height="115" fill={c2} opacity="0.35" />
+      <text x="100" y="130" textAnchor="middle" fill={c3} fontFamily="'Barlow Condensed',sans-serif" fontSize="48" opacity="0.18" fontWeight="900">10</text>
+    </svg>
+  );
+};
+
+// ── Modal / Drawer ────────────────────────────────────────────────
+// ── Toasts: minimal feedback for actions (no context, ref-based singleton) ──
+let toastIdCounter = 0;
+const toastListeners = new Set();
+const toast = (message, opts = {}) => {
+  const t = { id: ++toastIdCounter, message, kind: opts.kind || "info", duration: opts.duration || 2600 };
+  toastListeners.forEach(fn => fn({ type: "add", toast: t }));
+  return t.id;
+};
+toast.ok = (msg) => toast(msg, { kind: "ok" });
+toast.warn = (msg) => toast(msg, { kind: "warn" });
+toast.err = (msg) => toast(msg, { kind: "err" });
+
+const ToastContainer = () => {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    const fn = (ev) => {
+      if (ev.type === "add") {
+        setItems(prev => [...prev, ev.toast]);
+        setTimeout(() => setItems(prev => prev.filter(i => i.id !== ev.toast.id)), ev.toast.duration);
+      }
+    };
+    toastListeners.add(fn);
+    return () => toastListeners.delete(fn);
+  }, []);
+
+  const colorFor = (k) => k === "ok" ? C.ok : k === "warn" ? C.warn : k === "err" ? C.danger : C.accent;
+  const iconFor = (k) => k === "ok" ? CheckCircle2 : k === "warn" ? AlertTriangle : k === "err" ? X : Sparkles;
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[80] flex flex-col gap-2 pointer-events-none">
+      {items.map(t => {
+        const IconC = iconFor(t.kind);
+        const c = colorFor(t.kind);
+        return (
+          <div key={t.id} className="toast-enter pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl min-w-[260px] max-w-[420px]"
+            style={{
+              background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+              boxShadow: ELEV.floating + ", 0 0 0 1px " + c + "33",
+              backdropFilter: "blur(20px)"
+            }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: c + "22", color: c }}>
+              <IconC size={14} strokeWidth={2.4} />
+            </div>
+            <div className="text-[12.5px] font-medium flex-1" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>{t.message}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const Modal = ({ title, onClose, children, width = "520px" }) => {
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="rounded-2xl flex flex-col w-full" style={{
+        background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+        maxWidth: width,
+        maxHeight: "92vh",
+        boxShadow: ELEV.floating + ", 0 0 80px rgba(94,169,232,0.05)",
+        ...PREMIUM_FONT
+      }}>
+        {/* Sticky header — always visible, contains close button */}
+        <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
+          <h2 className="text-[15px] font-bold truncate pr-2" style={{ color: C.text, fontFamily: "'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{title}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:bg-white/5 shrink-0"><X size={16} style={{ color: C.textDim }} /></button>
+        </div>
+        {/* Scrollable body */}
+        <div ref={bodyRef} className="overflow-y-auto px-6 py-5 space-y-5" style={{ minHeight: 0 }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Drawer = ({ onClose, children }) => {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="h-full overflow-y-auto p-6 w-full max-w-[500px] space-y-5" style={{
+        background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+        boxShadow: ELEV.floating,
+        ...PREMIUM_FONT
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// ── LoginScreen: shown when backend reports 401 ──────────────────
+const LoginScreen = ({ onLoggedIn }) => {
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const submit = async (e) => {
+    e?.preventDefault();
+    if (submitting) return;
+    setSubmitting(true); setError("");
+    try {
+      const r = await fetch("/api/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      if (r.ok) {
+        onLoggedIn?.();
+      } else {
+        const d = await r.json().catch(() => ({}));
+        setError(d.error || "No se pudo iniciar sesión");
+      }
+    } catch (err) {
+      setError("Error de red — verificá la conexión");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{
+      background: C.bg,
+      backgroundImage: `radial-gradient(circle at 30% 20%, rgba(94,169,232,0.10) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(94,169,232,0.06) 0%, transparent 50%)`,
+      ...PREMIUM_FONT
+    }}>
+      <form onSubmit={submit} className="w-full max-w-sm">
+        <div className="text-center mb-7">
+          <div className="flex justify-center mb-5"><LP3DLogo size={72} /></div>
+          <div className="text-[20px] font-bold tracking-[0.04em]" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>LP SPORT</div>
+          <div className="text-[10.5px] mt-1 tracking-[0.18em] lowercase" style={{ color: C.textDim }}>futbol design</div>
+        </div>
+
+        <div className="rounded-2xl p-6 space-y-4" style={{
+          background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+          boxShadow: ELEV.floating
+        }}>
+          <div>
+            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
+            <input
+              ref={inputRef}
+              type="password"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError(""); }}
+              placeholder="Ingresá tu clave"
+              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
+              style={{
+                background: C.surface2,
+                color: C.text,
+                border: `1px solid ${error ? C.danger + "55" : C.border}`,
+                fontFamily: "'JetBrains Mono', monospace",
+                ...PREMIUM_FONT
+              }}
+              autoComplete="current-password"
+            />
+            {error && <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: C.danger }}><AlertTriangle size={11} />{error}</div>}
+          </div>
+
+          <Btn variant="primary" onClick={submit} disabled={submitting || !password} className="w-full justify-center">
+            {submitting ? "Entrando…" : "Entrar"}
+          </Btn>
+        </div>
+
+        <div className="text-center mt-5 text-[10.5px]" style={{ color: C.textMute }}>
+          Sesión protegida · Tus datos se sincronizan entre tus dispositivos
+        </div>
+      </form>
+    </div>
+  );
+};
+
+
+const WELCOME_KEY = "lpsport:welcome-dismissed";
+const WelcomeModal = ({ onClose }) => {
+  const dismissAndStay = () => { localStorage.setItem(WELCOME_KEY, "1"); onClose(); };
+  const dismissAndDownload = () => { localStorage.setItem(WELCOME_KEY, "1"); downloadSelf(); onClose(); };
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}>
+      <div className="rounded-2xl p-7 w-full max-w-md text-center" style={{
+        background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+        boxShadow: ELEV.floating + ", 0 0 100px rgba(94,169,232,0.15)",
+        ...PREMIUM_FONT,
+        animation: "toastIn 320ms cubic-bezier(.2,.8,.2,1) both"
+      }}>
+        {/* Logo prominent */}
+        <div className="flex justify-center mb-4">
+          <LP3DLogo size={64} />
+        </div>
+        <h2 className="text-[20px] font-bold mb-1.5" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.02em" }}>
+          ¿Querés acceso más rápido?
+        </h2>
+        <p className="text-[13px] leading-relaxed mb-5" style={{ color: C.textDim }}>
+          Descargá LP Sport a tu escritorio y abrilo con doble click. Funciona offline y se queda en tu computadora.
+        </p>
+
+        {/* Feature list */}
+        <div className="text-left space-y-2 mb-6 px-2">
+          {[
+            { icon: Download, text: "Un solo archivo .html que guardás donde quieras" },
+            { icon: Activity, text: "Funciona sin internet una vez descargado" },
+            { icon: CheckCircle2, text: "Tus pedidos y empresas actuales se incluyen" }
+          ].map(({ icon: I, text }, i) => (
+            <div key={i} className="flex items-center gap-2.5 text-[12px]" style={{ color: C.textDim }}>
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.accentSoft, color: C.accent }}>
+                <I size={12} strokeWidth={2.4} />
+              </div>
+              <span>{text}</span>
+            </div>
+          ))}
+        </div>
+
+        <Btn variant="primary" icon={Download} onClick={dismissAndDownload} className="w-full justify-center">
+          Descargar al escritorio
+        </Btn>
+        <button onClick={dismissAndStay} className="block w-full mt-3 text-[12px] py-2 transition-colors hover:text-white" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif" }}>
+          Seguir en el navegador
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Lightbox ─────────────────────────────────────────────────────
+const Lightbox = ({ archivo, onClose }) => {
+  useEffect(() => {
+    const h = e => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", h);
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", h); document.body.style.overflow = ""; };
+  }, [onClose]);
+  if (!archivo?.dataUrl) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: "rgba(0,0,0,0.96)", backdropFilter: "blur(12px)" }} onClick={onClose}>
+      <div className="flex items-center justify-between px-6 py-4 shrink-0" onClick={e => e.stopPropagation()}>
+        <div>
+          <div className="text-[14px] font-semibold" style={{ color: C.text }}>{archivo.name}</div>
+          <div className="text-[11px]" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{fmtBytes(archivo.size)} · {archivo.type?.split("/")[1]?.toUpperCase()}</div>
+        </div>
+        <div className="flex gap-2">
+          <a href={archivo.dataUrl} download={archivo.name}><Btn icon={Download}>Descargar</Btn></a>
+          <Btn onClick={onClose} icon={X}>ESC</Btn>
+        </div>
+      </div>
+      <div className="flex-1 flex items-center justify-center p-8" onClick={e => e.stopPropagation()}>
+        <img src={archivo.dataUrl} alt="" className="max-w-full max-h-full object-contain rounded-2xl" style={{ boxShadow: "0 32px 96px rgba(0,0,0,0.8)" }} />
+      </div>
+    </div>
+  );
+};
+
+// ── InfoBox ───────────────────────────────────────────────────────
+const InfoBox = ({ label, value, mono, color = C.text, sub }) => (
+  <div className="p-4 rounded-xl" style={{ background: C.surface2, boxShadow: ELEV.card }}>
+    <div className="text-[9.5px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: C.textMute }}>{label}</div>
+    <div className="text-[20px] font-bold leading-tight" style={{ color, fontFamily: mono ? "'JetBrains Mono', monospace" : "'Barlow', sans-serif", ...PREMIUM_FONT, letterSpacing: mono ? "-0.01em" : "0" }}>{value}</div>
+    {sub && <div className="text-[10px] mt-1.5" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{sub}</div>}
+  </div>
+);
+
+// ── Roster grid ───────────────────────────────────────────────────
+const RosterCell = ({ value, onChange, type = "text", placeholder, options, mono, align = "left" }) => {
+  const s = {
+    background: "transparent",
+    border: "1px solid transparent",
+    borderRadius: 8,
+    padding: "10px 12px",
+    color: C.text,
+    width: "100%",
+    outline: "none",
+    fontSize: 14,
+    fontWeight: 500,
+    fontFamily: mono ? "'JetBrains Mono', monospace" : "'Barlow', sans-serif",
+    fontFeatureSettings: "'tnum' 1",
+    textAlign: align,
+    transition: "all 160ms cubic-bezier(.2,.8,.2,1)"
+  };
+  if (options) return <select value={value || ""} onChange={e => onChange(e.target.value)} className="roster-cell" style={{ ...s, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}><option value="">—</option>{options.map(o => <option key={o} value={o}>{o}</option>)}</select>;
+  return <input type={type} value={value ?? ""} onChange={e => onChange(type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)} placeholder={placeholder} className="roster-cell" style={s} />;
+};
+
+const RosterGrid = ({ roster, onChange, onPasteWhatsApp }) => {
+  const totalMoney = roster.reduce((a, b) => a + (Number(b.total) || 0), 0);
+  const totalUnidades = roster.reduce((a, b) => a + (Number(b.cantidad) || 0), 0);
+  const updateRow = (id, patch) => onChange(roster.map(r => r.id === id ? { ...r, ...patch } : r));
+  const deleteRow = id => onChange(roster.filter(r => r.id !== id));
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkPrice, setBulkPrice] = useState("");
+
+  const applyBulkPrice = () => {
+    const n = Number(bulkPrice);
+    if (!n || n <= 0) { toast.warn("Ingresá un precio unitario válido"); return; }
+    onChange(roster.map(r => ({ ...r, total: n * (Number(r.cantidad) || 1) })));
+    toast.ok(`Aplicado ${ARS(n)} × cantidad a las ${roster.length} filas`);
+    setShowBulk(false);
+    setBulkPrice("");
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="text-[12px] font-semibold" style={{ color: C.textDim, fontFamily: "'Barlow', sans-serif", ...PREMIUM_FONT }}>
+          <span style={{ color: C.text, fontWeight: 700 }}>{roster.length}</span> {roster.length === 1 ? "fila" : "filas"}{totalUnidades > 0 ? ` · ${totalUnidades} unid.` : ""}
+          {totalMoney > 0 && <span style={{ color: C.accent, fontWeight: 700 }}> · {ARS(totalMoney)}</span>}
+        </div>
+        <div className="flex gap-2 items-center">
+          {roster.length > 0 && <Btn size="sm" variant="ghost" icon={DollarSign} onClick={() => setShowBulk(s => !s)}>Precio unitario</Btn>}
+          {onPasteWhatsApp && <Btn size="sm" variant="ghost" icon={MessageCircle} onClick={onPasteWhatsApp}>WhatsApp</Btn>}
+          <Btn size="sm" variant="ghost" icon={Plus} onClick={() => onChange([...roster, newRow()])}>Fila</Btn>
+        </div>
+      </div>
+
+      {showBulk && (
+        <div className="flex items-center gap-3 p-3 rounded-xl mb-3" style={{ background: C.surface2, boxShadow: ELEV.highlight, animation: "fadeSlideIn 200ms cubic-bezier(.2,.8,.2,1) both" }}>
+          <DollarSign size={15} style={{ color: C.accent }} className="shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-semibold mb-1" style={{ color: C.textDim, fontFamily: "'Barlow', sans-serif" }}>Aplicar precio × cantidad a todas las filas</div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={bulkPrice}
+                onChange={e => setBulkPrice(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") applyBulkPrice(); }}
+                placeholder="Precio por unidad"
+                autoFocus
+                className="flex-1 min-w-0 px-3 py-2 rounded-lg outline-none text-[13px]"
+                style={{ background: C.surface3, color: C.text, fontFamily: "'JetBrains Mono', monospace", boxShadow: ELEV.highlight, ...PREMIUM_FONT }}
+              />
+              <Btn size="sm" variant="primary" onClick={applyBulkPrice} disabled={!bulkPrice}>Aplicar</Btn>
+              <Btn size="sm" variant="ghost" onClick={() => { setShowBulk(false); setBulkPrice(""); }}>Cancelar</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+      {roster.length === 0 ? (
+        <div className="p-10 rounded-2xl text-center" style={{ background: C.surface2, boxShadow: ELEV.card }}>
+          <MessageCircle size={24} className="mx-auto mb-3" style={{ color: C.textMute }} />
+          <div className="text-[14px] font-bold mb-1" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>Sin filas todavía</div>
+          <div className="text-[12px]" style={{ color: C.textDim }}>Pegá el mensaje del cliente o agregá filas a mano</div>
+        </div>
+      ) : (
+        <div className="rounded-2xl overflow-hidden" style={{ background: C.surface2, boxShadow: ELEV.card }}>
+          <div className="overflow-x-auto">
+            <table className="w-full" style={{ minWidth: 620 }}>
+              <thead>
+                <tr style={{ background: "rgba(255,255,255,0.025)", borderBottom: `1px solid ${C.border}` }}>
+                  {[
+                    { label: "#", w: 48 },
+                    { label: "Nombre", w: null },
+                    { label: "Talle", w: 96 },
+                    { label: "Cant", w: 80 },
+                    { label: "Adicionales", w: null },
+                    { label: "Total", w: 140 },
+                    { label: "", w: 44 }
+                  ].map((h, i) => (
+                    <th key={i} className="text-left text-[10.5px] font-bold uppercase tracking-[0.18em] px-3 py-3.5" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif", width: h.w || undefined }}>{h.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {roster.map((r, i) => (
+                  <tr key={r.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : "none", transition: "background 160ms" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.015)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <td className="px-3 py-1 text-[13px] text-center font-semibold" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{i + 1}</td>
+                    <td><RosterCell value={r.nombre} onChange={v => updateRow(r.id, { nombre: v })} placeholder="Nombre" /></td>
+                    <td><RosterCell value={r.talle} onChange={v => updateRow(r.id, { talle: v })} options={TALLES_ARR} mono align="center" /></td>
+                    <td><RosterCell value={r.cantidad} onChange={v => updateRow(r.id, { cantidad: v })} type="number" mono align="center" /></td>
+                    <td><RosterCell value={r.adicionales} onChange={v => updateRow(r.id, { adicionales: v })} placeholder="—" /></td>
+                    <td><RosterCell value={r.total} onChange={v => updateRow(r.id, { total: v })} type="number" mono align="right" placeholder="0" /></td>
+                    <td className="text-center">
+                      <button onClick={() => deleteRow(r.id)} className="w-7 h-7 flex items-center justify-center rounded-lg transition-all" style={{ color: C.textMute }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.dangerSoft; e.currentTarget.style.color = C.danger; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.textMute; }}
+                      >
+                        <X size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {totalMoney > 0 && (
+                <tfoot>
+                  <tr style={{ borderTop: `1px solid ${C.border}`, background: "rgba(255,255,255,0.025)" }}>
+                    <td colSpan={5} className="text-right px-4 py-3 text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif" }}>Total</td>
+                    <td className="text-right px-4 py-3 text-[15px] font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{ARS(totalMoney)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// ── Empresas & Pedidos ───────────────────────────────────────────
+const PALETA_EMPRESAS = ["#5EA9E8", "#a855f7", "#22c55e", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#c5a663"];
+
+const NuevaEmpresaModal = ({ onClose, onSave, existingIds, existing }) => {
+  const isEdit = !!existing;
+  const nextNum = useMemo(() => { const n = existingIds.map(id => parseInt(id.split("-").pop())).filter(n => !isNaN(n)); return String((Math.max(0, ...n)) + 1).padStart(3, "0"); }, [existingIds]);
+  const [form, setForm] = useState(isEdit
+    ? { nombre: existing.nombre, color: existing.color, notas: existing.notas || "" }
+    : { nombre: "", color: PALETA_EMPRESAS[0], notas: "" });
+  const submit = () => {
+    if (!form.nombre.trim()) { toast.warn("Falta el nombre"); return; }
+    if (isEdit) {
+      onSave({ ...existing, nombre: form.nombre.trim(), color: form.color, notas: form.notas.trim() });
+    } else {
+      onSave({ id: `EMP-${nextNum}`, nombre: form.nombre.trim(), color: form.color, createdAt: today(), notas: form.notas.trim() });
+    }
+  };
+  const title = isEdit ? `Editar empresa · ${existing.id}` : `Nueva empresa · EMP-${nextNum}`;
+  return (
+    <Modal title={title} onClose={onClose} width="460px">
+      {/* Preview */}
+      <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[13px] font-black shrink-0" style={{ background: form.color + "22", color: form.color, border: `1px solid ${form.color}44`, fontFamily: "'Barlow Condensed', sans-serif" }}>{getInitials(form.nombre) || "?"}</div>
+        <div><div className="text-[13.5px] font-bold" style={{ color: C.text }}>{form.nombre || "Sin nombre"}</div><div className="text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{isEdit ? existing.id : `EMP-${nextNum}`}</div></div>
+      </div>
+      <Input label="Nombre de la empresa *" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Real Berazategui FC" />
+      <div>
+        <SectionLabel>Color de marca</SectionLabel>
+        <div className="flex gap-2 flex-wrap mt-2">
+          {PALETA_EMPRESAS.map(c => <button key={c} onClick={() => setForm({ ...form, color: c })} className="w-8 h-8 rounded-lg transition-all hover:scale-110 flex items-center justify-center" style={{ border: `2px solid ${form.color === c ? c : "transparent"}`, background: c + "22" }} title={c}><span className="w-4 h-4 rounded-md" style={{ background: c }} /></button>)}
+        </div>
+      </div>
+      <label className="block">
+        <SectionLabel>Notas</SectionLabel>
+        <textarea value={form.notas} onChange={e => setForm({ ...form, notas: e.target.value })} rows="2" placeholder="Notas del cliente..." className="w-full px-3 py-2 rounded-xl text-sm outline-none resize-none mt-1.5" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} />
+      </label>
+      <div className="flex justify-end gap-2 pt-2">
+        <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" icon={CheckCircle2} onClick={submit}>{isEdit ? "Guardar cambios" : "Crear empresa"}</Btn>
+      </div>
+    </Modal>
+  );
+};
+
+const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedCliente }) => {
+  const nextNum = useMemo(() => { const n = existingIds.map(id => parseInt(id.split("-").pop())).filter(n => !isNaN(n)); return String((Math.max(0, ...n)) + 1).padStart(3, "0"); }, [existingIds]);
+  const [form, setForm] = useState({ cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [] });
+  const tipoOptions = ["Camiseta titular", "Camiseta suplente", "Camiseta arquero", "Conjunto", "Short titular", "Short suplente", "Egresados", "Buzo polar", "Campera", "Otros"];
+  const addArchivo = (f) => { if (f) setForm(prev => ({ ...prev, archivos: [...prev.archivos, f] })); };
+  const removeArchivo = (idx) => setForm(prev => ({ ...prev, archivos: prev.archivos.filter((_, i) => i !== idx) }));
+  const submit = () => {
+    if (!form.cliente.trim()) { toast.warn("Falta el cliente"); return; }
+    const productos = [form.tipo1, form.tipo2, form.tipo3].filter(t => t?.trim()).map(tipo => ({ tipo }));
+    if (!productos.length) { toast.warn("Elegí al menos un producto"); return; }
+    const cliMatch = customers.find(c => c.equipo === form.cliente || c.nombre === form.cliente);
+    const order = {
+      id: `PED-2026-${nextNum}`,
+      clienteId: cliMatch?.id || "CLI-NEW",
+      cliente: form.cliente,
+      delegado: cliMatch?.nombre || "",
+      whatsapp: cliMatch?.whatsapp || "",
+      productos,
+      total: 0, costo: 0, sena: 0, saldo: 0,
+      estado: "diseno",
+      fechaPedido: today(),
+      fechaEntrega: form.fechaEntrega,
+      diseno: `EP-DSG-${String(parseInt(nextNum) + 100)}`,
+      observaciones: form.observaciones,
+      colores: ["#5EA9E8", "#000000"],
+      archivosDiseno: form.archivos,
+      archivoDiseno: form.archivos[0] || null  // back-compat for code that still reads single
+    };
+    onSave(order);
+  };
+  return (
+    <Modal title={`Nuevo pedido · PED-2026-${nextNum}`} onClose={onClose} width="580px">
+      <div className="grid grid-cols-2 gap-3">
+        <Input label={lockedCliente ? "Pedido para (editable)" : "Cliente / Equipo *"} value={form.cliente} onChange={e => setForm({ ...form, cliente: e.target.value })} placeholder="Ej: Club San Martín" />
+        <Input label="Fecha de entrega *" type="date" value={form.fechaEntrega} onChange={e => setForm({ ...form, fechaEntrega: e.target.value })} />
+      </div>
+      <div>
+        <SectionLabel>Productos</SectionLabel>
+        <div className="grid grid-cols-3 gap-2 mt-1.5">
+          {[["Tipo 1", "tipo1"], ["Tipo 2", "tipo2"], ["Tipo 3", "tipo3"]].map(([lbl, key]) => (
+            <Select key={key} label={lbl} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}>
+              <option value="">— Ninguno —</option>
+              {tipoOptions.map(t => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          ))}
+        </div>
+      </div>
+      <div>
+        <SectionLabel>Archivos del diseño · {form.archivos.length}</SectionLabel>
+        <div className="mt-1.5 space-y-2">
+          {form.archivos.map((a, i) => (
+            <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+              {a.type?.startsWith("image/") && a.dataUrl ? (
+                <img src={a.dataUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface3, color: C.accent }}><FileText size={16} /></div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-[12px] font-semibold truncate" style={{ color: C.text }}>{a.name}</div>
+                <div className="text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{fmtBytes(a.size)}</div>
+              </div>
+              <button onClick={() => removeArchivo(i)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5"><X size={14} style={{ color: C.textDim }} /></button>
+            </div>
+          ))}
+          <ArchivoUpload archivo={null} onChange={addArchivo} />
+        </div>
+      </div>
+      <label className="block">
+        <SectionLabel>Observaciones</SectionLabel>
+        <textarea value={form.observaciones} onChange={e => setForm({ ...form, observaciones: e.target.value })} rows="2" className="w-full px-3 py-2 rounded-xl text-sm outline-none resize-none mt-1.5" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text }} />
+      </label>
+      <div className="flex justify-end gap-2 pt-2">
+        <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="primary" icon={CheckCircle2} onClick={submit}>Crear pedido</Btn>
+      </div>
+    </Modal>
+  );
+};
+
+// ── Empresa card ─────────────────────────────────────────────────
+const EmpresaCard = ({ empresa, orders, onClick }) => {
+  const activos = orders.filter(o => o.estado !== "entrega").length;
+  const states = estadoFlow.map(s => ({ s, count: orders.filter(o => o.estado === s).length, color: estadoConfig[s].color })).filter(x => x.count);
+  return (
+    <Tilt3D intensity={4} onClick={onClick} className="cursor-pointer">
+      <div className="text-left p-5 rounded-2xl group flex flex-col"
+        style={{
+          background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+          boxShadow: ELEV.card,
+          minHeight: 180,
+          transition: "box-shadow 240ms cubic-bezier(.2,.8,.2,1)"
+        }}
+        onMouseEnter={e => e.currentTarget.style.boxShadow = ELEV.cardHover.replace("rgba(94,169,232,0.08)", empresa.color + "20")}
+        onMouseLeave={e => e.currentTarget.style.boxShadow = ELEV.card}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[14px] font-black shrink-0"
+            style={{
+              background: "linear-gradient(135deg, " + empresa.color + "33 0%, " + empresa.color + "11 100%)",
+              color: empresa.color,
+              boxShadow: "inset 0 1px 0 0 " + empresa.color + "44, 0 0 0 1px " + empresa.color + "33",
+              fontFamily: "'Barlow Condensed', sans-serif"
+            }}>
+            {getInitials(empresa.nombre)}
+          </div>
+          <ChevronRight size={14} className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: empresa.color }} />
+        </div>
+        <div className="flex-1">
+          <div className="text-[14.5px] font-bold leading-tight line-clamp-2 mb-1" style={{ color: C.text, fontFamily: "'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{empresa.nombre}</div>
+          <div className="text-[11px]" style={{ color: C.textDim, ...PREMIUM_FONT }}>
+            {orders.length === 0 ? "Sin pedidos" : `${orders.length} pedido${orders.length > 1 ? "s" : ""}${activos ? ` · ${activos} activo${activos > 1 ? "s" : ""}` : ""}`}
+          </div>
+        </div>
+        {states.length > 0 && (
+          <div className="flex items-center gap-2.5 pt-3 mt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+            {states.map(({ s, count, color }) => (
+              <div key={s} className="flex items-center gap-1 text-[10px] font-bold" style={{ color, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />{count}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Tilt3D>
+  );
+};
+
+// ── Kanban card ──────────────────────────────────────────────────
+const KanbanCard = ({ order, onClick, onDragStart, onDragEnd }) => {
+  const days = daysDiff(order.fechaEntrega);
+  const isLate = days < 0 && order.estado !== "entrega";
+  return (
+    <div
+      draggable
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", order.id); onDragStart?.(order.id); }}
+      onDragEnd={() => onDragEnd?.()}
+      onClick={onClick}
+      className="dnd-card p-3.5 rounded-xl group select-none"
+      style={{
+        background: C.surface,
+        boxShadow: isLate ? ELEV.card + ", 0 0 0 2px " + C.danger + "22" : ELEV.card,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = ELEV.cardHover; e.currentTarget.style.transform = "translateY(-2px)"; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = isLate ? ELEV.card + ", 0 0 0 2px " + C.danger + "22" : ELEV.card; e.currentTarget.style.transform = "translateY(0)"; }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[9.5px] font-bold" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{order.id}</span>
+        <div className="flex items-center gap-1.5">
+          {order.roster?.length > 0 && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md" style={{ background: C.accentSoft, color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>{order.roster.length}</span>}
+          {order.archivoDiseno && <Paperclip size={10} style={{ color: C.accent }} />}
+          {isLate && <AlertTriangle size={11} style={{ color: C.danger }} />}
+        </div>
+      </div>
+      <div className="text-[12.5px] font-semibold leading-tight mb-2.5 line-clamp-2" style={{ color: C.text }}>
+        {order.cliente}
+      </div>
+      <div className="text-[10.5px] mb-2.5 line-clamp-2" style={{ color: C.textDim }}>
+        {order.productos?.map(p => p.tipo).join(" · ")}
+      </div>
+      <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+        <span className="text-[11px] font-bold" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{ARS(order.total)}</span>
+        <span className="text-[10px] font-semibold" style={{ color: isLate ? C.danger : C.textMute, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>
+          {isLate ? `${Math.abs(days)}d tarde` : days === 0 ? "hoy" : `${days}d`}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// ── DetallePedidoDrawer ───────────────────────────────────────────
+const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate, onUpdate, onViewDesign, onOpenPlanilla }) => {
+  const days = daysDiff(order.fechaEntrega);
+  const isLate = days < 0 && order.estado !== "entrega";
+  const curIdx = estadoFlow.indexOf(order.estado);
+  const isFinal = order.estado === "entrega";
+  // Automation: if the planilla has any totals filled in, that's the source of truth for the order total
+  const planillaTotal = (order.roster || []).reduce((a, r) => a + (Number(r.total) || 0), 0);
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="rounded-2xl flex flex-col w-full" style={{
+        background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+        maxWidth: 540,
+        maxHeight: "92vh",
+        boxShadow: ELEV.floating + ", 0 0 80px rgba(94,169,232,0.05)",
+        ...PREMIUM_FONT
+      }}>
+      {/* Sticky Header */}
+      <div className="flex items-start justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div className="min-w-0">
+          <div className="text-[10.5px] mb-1" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>{order.id}</div>
+          <div className="text-[21px] leading-tight truncate" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700 }}>{order.cliente}</div>
+          <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>{order.delegado}</div>
+        </div>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 shrink-0 ml-3"><X size={17} style={{ color: C.textDim }} /></button>
+      </div>
+
+      {/* Scrollable body */}
+      <div ref={bodyRef} className="overflow-y-auto px-6 py-5 space-y-5" style={{ minHeight: 0 }}>
+
+      {/* Timeline */}
+      <div className="p-4 rounded-2xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+        <SectionLabel className="mb-3">Progreso del pedido</SectionLabel>
+        <div className="flex items-center">
+          {estadoFlow.map((e, i) => {
+            const cfg = estadoConfig[e]; const done = i < curIdx; const cur = i === curIdx;
+            return (
+              <React.Fragment key={e}>
+                <div className="flex flex-col items-center gap-1 flex-1">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: cur ? cfg.color : done ? cfg.color : C.surface3, boxShadow: cur ? `0 0 12px ${cfg.color}88` : "none" }}>
+                    {done ? <CheckCircle2 size={13} color="#000" /> : cur ? <div className="w-2 h-2 rounded-full bg-black" /> : <Circle size={5} color={C.textMute} />}
+                  </div>
+                  <span className="text-[8.5px] font-black uppercase tracking-wider text-center leading-tight" style={{ color: cur ? cfg.color : done ? C.text : C.textMute }}>{cfg.label}</span>
+                </div>
+                {i < estadoFlow.length - 1 && <div className="h-px flex-1 mx-1" style={{ background: done ? C.accent : C.border }} />}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Primary CTA */}
+      {!isFinal && (
+        <Btn variant="primary" icon={ChevronRight} onClick={() => onAdvance(order.id)} className="w-full justify-center">
+          Avanzar a "{estadoConfig[estadoFlow[curIdx + 1]]?.label}"
+        </Btn>
+      )}
+
+      {/* Key facts: total auto-derived from planilla if it has data; otherwise stored total */}
+      <div className="grid grid-cols-2 gap-3">
+        <InfoBox label="Total" value={ARS(planillaTotal > 0 ? planillaTotal : order.total)} mono sub={planillaTotal > 0 && planillaTotal !== order.total ? "auto · planilla" : undefined} />
+        <InfoBox label="Entrega" value={order.fechaEntrega} mono color={isLate ? C.danger : C.text} sub={isLate ? `${Math.abs(days)}d de retraso` : `${days}d restantes`} />
+      </div>
+
+      {/* Productos */}
+      <div>
+        <SectionLabel>Productos</SectionLabel>
+        <div className="space-y-1.5">
+          {order.productos?.map((p, i) => (
+            <div key={i} className="flex items-center justify-between p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+              <div className="text-[13px] font-semibold" style={{ color: C.text }}>{p.tipo}</div>
+              {p.cantidad && <div className="text-[13px] font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>×{p.cantidad}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Planilla shortcut */}
+      <div>
+        <SectionLabel>Planilla del pedido</SectionLabel>
+        <button onClick={() => { onOpenPlanilla?.(order.id); }}
+          className="w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all group"
+          style={{ background: C.surface2, border: `1px solid ${C.border}` }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.background = C.accentSoft; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = C.surface2; }}
+        >
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.accentSoft, color: C.accent }}><ClipboardList size={17} /></div>
+          <div className="flex-1 min-w-0">
+            {order.roster?.length > 0
+              ? <><div className="text-[13px] font-semibold" style={{ color: C.text }}>Ver planilla — {order.roster.length} filas</div><div className="text-[10.5px]" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{order.roster.reduce((a, b) => a + (Number(b.cantidad) || 0), 0)} unidades</div></>
+              : <><div className="text-[13px] font-semibold" style={{ color: C.text }}>Crear planilla</div><div className="text-[10.5px]" style={{ color: C.textDim }}>Pegá el WhatsApp del cliente</div></>}
+          </div>
+          <ChevronRight size={15} style={{ color: C.textMute }} />
+        </button>
+      </div>
+
+      {/* Diseño */}
+      <div>
+        <SectionLabel>Diseño · {order.diseno}</SectionLabel>
+        <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+          <div className="flex gap-1.5">{order.colores?.map((c, i) => <div key={i} className="w-7 h-7 rounded-lg" style={{ background: c, border: `1px solid rgba(255,255,255,0.08)` }} />)}</div>
+          {order.archivoDiseno && <Paperclip size={11} style={{ color: C.accent }} />}
+          <div className="flex-1" />
+          <Btn size="sm" icon={Eye} variant="ghost" onClick={() => onViewDesign?.(order.diseno)}>Ver mockup</Btn>
+        </div>
+      </div>
+
+      {/* Observaciones */}
+      {order.observaciones && (
+        <div>
+          <SectionLabel>Observaciones</SectionLabel>
+          <div className="text-[12.5px] p-3 rounded-xl leading-relaxed" style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }}>{order.observaciones}</div>
+        </div>
+      )}
+
+      <Divider />
+      <div className="flex justify-between items-center gap-2">
+        <Btn variant="ghost" icon={Copy} onClick={() => { if (confirm(`¿Duplicar ${order.id}? Se crea un nuevo pedido con los mismos productos, planilla vacía.`)) onDuplicate?.(order); }}>Duplicar</Btn>
+        <Btn variant="danger" icon={Trash2} onClick={() => onDelete(order.id)}>Eliminar pedido</Btn>
+      </div>
+      </div>{/* /scrollable body */}
+      </div>{/* /modal box */}
+    </div>
+  );
+};
+
+// ── PEDIDOS page ─────────────────────────────────────────────────
+const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, setEmpresas, onViewDesign, onOpenPlanilla, searchQuery = "" }) => {
+  const [selectedEmpresa, setSelectedEmpresa] = useState(null);
+  const [showNuevaEmpresa, setShowNuevaEmpresa] = useState(false);
+  const [editingEmpresa, setEditingEmpresa] = useState(null);
+  const [view, setView] = useState("kanban");
+  const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [sortBy, setSortBy] = useState("recientes");
+
+  const q = searchQuery.trim().toLowerCase();
+  const matchOrder = (o) => !q ||
+    (o.id && o.id.toLowerCase().includes(q)) ||
+    (o.cliente && o.cliente.toLowerCase().includes(q)) ||
+    (o.delegado && o.delegado.toLowerCase().includes(q)) ||
+    (o.observaciones && o.observaciones.toLowerCase().includes(q)) ||
+    (o.productos && o.productos.some(p => p.tipo && p.tipo.toLowerCase().includes(q)));
+
+  const sortFn = (a, b) => {
+    if (sortBy === "recientes") return new Date(b.fechaPedido) - new Date(a.fechaPedido);
+    if (sortBy === "antiguos")  return new Date(a.fechaPedido) - new Date(b.fechaPedido);
+    if (sortBy === "urgencia")  return new Date(a.fechaEntrega) - new Date(b.fechaEntrega);
+    if (sortBy === "totalDesc") return (Number(b.total) || 0) - (Number(a.total) || 0);
+    if (sortBy === "estado")    return estadoFlow.indexOf(a.estado) - estadoFlow.indexOf(b.estado);
+    return 0;
+  };
+
+  const empresaOrders = useMemo(
+    () => selectedEmpresa ? orders.filter(o => o.cliente === selectedEmpresa.nombre).filter(matchOrder).slice().sort(sortFn) : [],
+    [orders, selectedEmpresa, q, sortBy]
+  );
+  const filtered = useMemo(
+    () => filtroEstado === "todos" ? empresaOrders : empresaOrders.filter(o => o.estado === filtroEstado),
+    [empresaOrders, filtroEstado]
+  );
+  // Filter empresas grid (when not inside a specific empresa)
+  const filteredEmpresas = useMemo(() => {
+    if (!q) return empresas;
+    return empresas.filter(e =>
+      e.nombre.toLowerCase().includes(q) ||
+      (e.notas && e.notas.toLowerCase().includes(q)) ||
+      orders.some(o => o.cliente === e.nombre && matchOrder(o))
+    );
+  }, [empresas, q, orders]);
+
+  const advanceOrder = id => setOrders(orders.map(o => { if (o.id !== id) return o; const i = estadoFlow.indexOf(o.estado); return { ...o, estado: estadoFlow[Math.min(i + 1, 3)] }; }));
+  const duplicateOrder = (original) => {
+    const nums = orders.map(o => parseInt(o.id.split("-").pop())).filter(n => !isNaN(n));
+    const nextNum = String((Math.max(0, ...nums)) + 1).padStart(3, "0");
+    const newId = `PED-2026-${nextNum}`;
+    const dupe = {
+      ...original,
+      id: newId,
+      estado: "diseno",
+      fechaPedido: today(),
+      fechaEntrega: daysFromNow(14),
+      roster: [],            // start with empty planilla (don't carry players)
+      diseno: `EP-DSG-${String(parseInt(nextNum) + 100)}`,
+      observaciones: original.observaciones || "",
+      total: 0, sena: 0, saldo: 0
+    };
+    setOrders([dupe, ...orders]);
+    toast.ok(`Pedido ${newId} creado como copia de ${original.id}`);
+    return dupe;
+  };
+  const moveOrderToEstado = (id, newEstado) => {
+    const o = orders.find(x => x.id === id);
+    if (!o || o.estado === newEstado) return;
+    setOrders(orders.map(x => x.id === id ? { ...x, estado: newEstado } : x));
+    toast.ok(`${o.id} → ${estadoConfig[newEstado].label}`);
+  };
+  const deleteOrder = id => { if (confirm("¿Eliminar este pedido?")) { setOrders(orders.filter(o => o.id !== id)); setSelected(null); toast.ok("Pedido eliminado"); } };
+  const addOrder = (o) => {
+    setOrders([o, ...orders]);
+    setShowForm(false);
+    toast(`Pedido ${o.id} creado · ${o.cliente}`);
+    // Automation: create LP design entries — one per uploaded file
+    const archivos = o.archivosDiseno && o.archivosDiseno.length ? o.archivosDiseno : (o.archivoDiseno ? [o.archivoDiseno] : []);
+    if (archivos.length > 0) {
+      const baseNum = parseInt(o.diseno.split("-").pop()) || 100;
+      const newDesigns = archivos.map((arch, i) => ({
+        id: i === 0 ? o.diseno : `EP-DSG-${String(baseNum + i)}`,
+        nombre: archivos.length === 1 ? `Diseño · ${o.cliente}` : `Diseño ${i + 1} · ${o.cliente}`,
+        cliente: o.cliente,
+        tipoPrenda: (o.productos[0] && o.productos[0].tipo) || "Camiseta",
+        fecha: today(),
+        colores: o.colores || ["#5EA9E8", "#000000", "#ffffff"],
+        estado: "en_proceso",
+        notas: o.observaciones || "",
+        pedidoVinculado: o.id,
+        archivo: arch
+      }));
+      setDesigns([...newDesigns, ...designs]);
+    }
+    toast.ok(archivos.length > 0
+      ? `Pedido creado · ${archivos.length} ${archivos.length === 1 ? "diseño guardado en LP design" : "diseños guardados en LP design"}`
+      : "Pedido creado");
+  };
+  const addEmpresa = e => { setEmpresas([e, ...empresas]); setShowNuevaEmpresa(false); toast.ok(`Empresa "${e.nombre}" creada`); };
+  const updateEmpresa = (updated) => {
+    const oldName = editingEmpresa.nombre;
+    const newName = updated.nombre;
+    setEmpresas(empresas.map(e => e.id === updated.id ? updated : e));
+    // Cascade rename: if name changed, update all orders that reference the old name
+    if (oldName !== newName) {
+      setOrders(orders.map(o => o.cliente === oldName ? { ...o, cliente: newName } : o));
+    }
+    if (selectedEmpresa?.id === updated.id) setSelectedEmpresa(updated);
+    setEditingEmpresa(null);
+    toast.ok(`"${updated.nombre}" actualizada`);
+  };
+  const deleteEmpresa = e => {
+    const eOrds = orders.filter(o => o.cliente === e.nombre);
+    if (!confirm(`¿Eliminar "${e.nombre}"${eOrds.length ? ` y sus ${eOrds.length} pedidos` : ""}?`)) return;
+    if (eOrds.length) setOrders(orders.filter(o => o.cliente !== e.nombre));
+    setEmpresas(empresas.filter(x => x.id !== e.id));
+    setSelectedEmpresa(null);
+  };
+
+  // ── Empresas grid ──
+  if (!selectedEmpresa) return (
+    <div className="px-8 py-6">
+      {empresas.length === 0 ? (
+        <Card className="p-16 text-center">
+          <Folder size={30} className="mx-auto mb-3" style={{ color: C.textMute }} />
+          <div className="text-[15px] font-bold mb-1" style={{ color: C.text }}>Todavía no hay empresas</div>
+          <div className="text-[12px] mb-5" style={{ color: C.textDim }}>Las empresas agrupan los pedidos de cada cliente</div>
+          <Btn variant="primary" icon={Plus} onClick={() => setShowNuevaEmpresa(true)}>Crear primera empresa</Btn>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {filteredEmpresas.map(e => <EmpresaCard key={e.id} empresa={e} orders={orders.filter(o => o.cliente === e.nombre)} onClick={() => setSelectedEmpresa(e)} />)}
+          {!q && (
+            <button onClick={() => setShowNuevaEmpresa(true)}
+              className="rounded-2xl flex flex-col items-center justify-center transition-all hover:-translate-y-px hover:border-[#333]"
+              style={{ background: "transparent", border: `1.5px dashed ${C.border}`, color: C.textMute, minHeight: 170 }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textMute; }}
+            >
+              <Plus size={24} className="mb-2" />
+              <div className="text-[12.5px] font-semibold">Agregar empresa</div>
+            </button>
+          )}
+          {q && filteredEmpresas.length === 0 && (
+            <div className="col-span-full p-10 text-center rounded-2xl" style={{ background: C.surface, boxShadow: ELEV.card }}>
+              <Search size={24} className="mx-auto mb-3" style={{ color: C.textMute }} />
+              <div className="text-[13px] font-bold" style={{ color: C.text }}>Sin resultados para "{searchQuery}"</div>
+              <div className="text-[11.5px] mt-1" style={{ color: C.textDim }}>Probá otro término o vaciá la búsqueda</div>
+            </div>
+          )}
+        </div>
+      )}
+      {showNuevaEmpresa && <NuevaEmpresaModal onClose={() => setShowNuevaEmpresa(false)} onSave={addEmpresa} existingIds={empresas.map(e => e.id)} />}
+      {editingEmpresa && <NuevaEmpresaModal onClose={() => setEditingEmpresa(null)} onSave={updateEmpresa} existingIds={empresas.map(e => e.id)} existing={editingEmpresa} />}
+    </div>
+  );
+
+  // ── Empresa detail ──
+  return (
+    <div className="px-8 py-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => setSelectedEmpresa(null)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-all hover:bg-white/5" style={{ border: `1px solid ${C.border}`, color: C.textDim }}><ArrowLeft size={15} /></button>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[13px] font-black shrink-0" style={{ background: selectedEmpresa.color + "1a", color: selectedEmpresa.color, border: `1px solid ${selectedEmpresa.color}33`, fontFamily: "'Barlow Condensed', sans-serif" }}>{getInitials(selectedEmpresa.nombre)}</div>
+          <div className="min-w-0">
+            <div className="text-[18px] font-black truncate" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>{selectedEmpresa.nombre}</div>
+            <div className="text-[11px]" style={{ color: C.textDim }}>{empresaOrders.length} {empresaOrders.length === 1 ? "pedido" : "pedidos"}{empresaOrders.filter(o => o.estado !== "entrega").length > 0 && ` · ${empresaOrders.filter(o => o.estado !== "entrega").length} activos`}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Btn variant="ghost" icon={Edit3} onClick={() => setEditingEmpresa(selectedEmpresa)}>Editar</Btn>
+          <Btn variant="ghost" icon={Trash2} onClick={() => deleteEmpresa(selectedEmpresa)}>Eliminar</Btn>
+        </div>
+      </div>
+
+      {empresaOrders.length === 0 ? (
+        <Card className="p-14 text-center">
+          <Package size={26} className="mx-auto mb-3" style={{ color: C.textMute }} />
+          <div className="text-[14px] font-bold mb-1" style={{ color: C.text }}>Sin pedidos todavía</div>
+          <div className="text-[12px] mb-4" style={{ color: C.textDim }}>Creá el primer pedido para {selectedEmpresa.nombre}</div>
+          <Btn variant="primary" icon={Plus} onClick={() => setShowForm(true)}>Nuevo pedido</Btn>
+        </Card>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-xl p-0.5" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                {["kanban", "tabla"].map(v => (
+                  <button key={v} onClick={() => setView(v)} className="px-3 py-1.5 rounded-lg text-[11.5px] font-bold capitalize transition-all" style={{ background: view === v ? C.accent : "transparent", color: view === v ? "#040a10" : C.textDim }}>{v}</button>
+                ))}
+              </div>
+              <Select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
+                <option value="todos">Todos</option>
+                {Object.entries(estadoConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Select>
+              <Select value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                <option value="recientes">Recientes primero</option>
+                <option value="antiguos">Antiguos primero</option>
+                <option value="urgencia">Urgencia (entrega)</option>
+                <option value="totalDesc">Mayor total</option>
+                <option value="estado">Por estado</option>
+              </Select>
+            </div>
+            <Btn icon={Plus} variant="primary" onClick={() => setShowForm(true)}>Nuevo pedido</Btn>
+          </div>
+
+          {view === "kanban" ? (
+            <>
+              <div className="text-[11px] mb-3 flex items-center gap-1.5" style={{ color: C.textMute }}>
+                <Sparkles size={11} style={{ color: C.accent }} />
+                Arrastrá los pedidos entre columnas para cambiar el estado
+              </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {estadoFlow.map(estado => {
+                const cfg = estadoConfig[estado]; const list = empresaOrders.filter(o => o.estado === estado);
+                return (
+                  <div
+                    key={estado}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; e.currentTarget.classList.add("dnd-droptarget"); }}
+                    onDragLeave={(e) => e.currentTarget.classList.remove("dnd-droptarget")}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove("dnd-droptarget");
+                      const id = e.dataTransfer.getData("text/plain");
+                      if (!id) return;
+                      const o = orders.find(x => x.id === id);
+                      if (!o || o.estado === estado) return;
+                      moveOrderToEstado(id, estado);
+                    }}
+                    className="rounded-2xl p-2 transition-all"
+                    style={{ background: C.surface2, minHeight: 120 }}
+                  >
+                    <div className="flex items-center justify-between mb-2.5 px-2 pt-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{ background: cfg.color, boxShadow: `0 0 8px ${cfg.color}66` }} />
+                        <span className="text-[10.5px] font-black uppercase tracking-[0.14em]" style={{ color: cfg.color }}>{cfg.label}</span>
+                      </div>
+                      <span className="text-[10.5px] font-bold" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{list.length}</span>
+                    </div>
+                    <div className="space-y-2 min-h-16">
+                      {list.map(o => <KanbanCard key={o.id} order={o} onClick={() => setSelected(o)} />)}
+                      {list.length === 0 && (
+                        <div className="text-center py-6 text-[10.5px] italic" style={{ color: C.textMute }}>Arrastrá un pedido aquí</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            </>
+          ) : (
+            <Card className="overflow-hidden">
+              <table className="w-full text-[12.5px]">
+                <thead><tr style={{ background: C.surface2 }}>{["ID", "Productos", "Total", "Entrega", "Estado", ""].map(h => <th key={h} className="px-4 py-3 text-left text-[9px] font-black uppercase tracking-widest" style={{ color: C.textMute }}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {filtered.map((o, i) => {
+                    const days = daysDiff(o.fechaEntrega); const isLate = days < 0 && o.estado !== "entrega";
+                    return (
+                      <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }} className="hover:bg-white/[0.015] cursor-pointer transition-colors" onClick={() => setSelected(o)}>
+                        <td className="px-4 py-3 font-black text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{o.id}</td>
+                        <td className="px-4 py-3" style={{ color: C.text }}>{o.produtos?.map(p => p.tipo).join(" · ") || o.produtos?.join(" · ") || o.productos?.map(p => p.tipo).join(" · ")}</td>
+                        <td className="px-4 py-3 font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>{ARS(o.total)}</td>
+                        <td className="px-4 py-3 text-[10.5px]" style={{ color: isLate ? C.danger : C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{o.fechaEntrega}{isLate && ` (${Math.abs(days)}d)`}</td>
+                        <td className="px-4 py-3"><Badge dot color={estadoConfig[o.estado].color} bg={estadoConfig[o.estado].bg}>{estadoConfig[o.estado].label}</Badge></td>
+                        <td className="px-4 py-3 text-right"><ChevronRight size={13} style={{ color: C.textMute }} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </>
+      )}
+
+      {showForm && <NuevoPedidoModal onClose={() => setShowForm(false)} onSave={addOrder} customers={customers} existingIds={orders.map(o => o.id)} lockedCliente={selectedEmpresa?.nombre} />}
+      {selected && <DetallePedidoDrawer order={selected} onClose={() => setSelected(null)} onAdvance={advanceOrder} onDelete={deleteOrder} onDuplicate={(o) => { const d = duplicateOrder(o); setSelected(d); }} onUpdate={upd => { setOrders(orders.map(o => o.id === upd.id ? upd : o)); setSelected(upd); }} onViewDesign={id => { setSelected(null); onViewDesign?.(id); }} onOpenPlanilla={id => { setSelected(null); onOpenPlanilla?.(id); }} />}
+    </div>
+  );
+};
+
+// ── LP DESIGN (Diseños) page ─────────────────────────────────────
+const estadoDiseno = {
+  en_proceso:           { label: "En proceso",         color: C.info,    bg: "rgba(94,169,232,0.08)" },
+  esperando_aprobacion: { label: "Esperando aprobación",color: C.warn,    bg: "rgba(245,158,11,0.08)" },
+  aprobado:             { label: "Aprobado",            color: C.ok,      bg: "rgba(34,197,94,0.08)" }
+};
+
+const downloadDesignSVG = (d) => {
+  const [c1, c2, c3] = d.colores;
+  const swatches = d.colores.map((col, i) => `<rect x="${i * 90}" y="0" width="70" height="70" fill="${col}" stroke="#fff" stroke-width="1"/><text x="${i * 90 + 35}" y="92" text-anchor="middle" fill="#888" font-family="monospace" font-size="11">${col.toUpperCase()}</text>`).join("");
+  const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000"><rect width="800" height="1000" fill="#080808"/><text x="400" y="60" text-anchor="middle" fill="#f0f0f0" font-family="sans-serif" font-size="28" font-weight="800">${d.nombre}</text><text x="400" y="90" text-anchor="middle" fill="#888" font-family="monospace" font-size="13">${d.id} · ${d.cliente} · ${d.tipoPrenda || "Camiseta"}</text><g transform="translate(160,140) scale(2.4)"><path d="M45 48 L72 32 L82 72 L55 92 Z" fill="${c2 || c1}"/><path d="M155 48 L128 32 L118 72 L145 92 Z" fill="${c2 || c1}"/><path d="M72 32 L84 44 Q100 52 116 44 L128 32 L138 52 L138 172 L62 172 L62 52 Z" fill="${c1}"/><path d="M84 44 Q100 52 116 44 L111 57 Q100 62 89 57 Z" fill="${c3 || "#fff"}"/><text x="100" y="128" text-anchor="middle" fill="${c3 || "#fff"}" font-family="sans-serif" font-size="46" opacity="0.2" font-weight="900">10</text></g><g transform="translate(120,850)">${swatches}</g><text x="720" y="970" text-anchor="end" fill="#444" font-family="monospace" font-size="11">LP SPORT · LP DESIGN · ${d.fecha}</text></svg>`;
+  const blob = new Blob([svg], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement("a"), { href: url, download: `${d.id}-${d.nombre.replace(/[^a-z0-9]/gi, "_")}.svg` });
+  document.body.appendChild(a); a.click(); setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+};
+
+const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }) => {
+  const [lightbox, setLightbox] = useState(null);
+  const cfg = estadoDiseno[d.estado] || estadoDiseno.en_proceso;
+  const cli = customers.find(c => c.equipo === d.cliente || c.nombre === d.cliente);
+  const linkedOrder = orders.find(o => o.id === d.pedidoVinculado);
+  const isImg = d.archivo?.type?.startsWith("image/") && d.archivo?.dataUrl;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }} onClick={onClose}>
+        <div onClick={e => e.stopPropagation()} className="rounded-2xl flex flex-col w-full" style={{
+          background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+          maxWidth: 540,
+          maxHeight: "92vh",
+          boxShadow: ELEV.floating + ", 0 0 80px rgba(94,169,232,0.05)",
+          ...PREMIUM_FONT
+        }}>
+          {/* Sticky Header */}
+          <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
+            <span className="text-[10.5px] font-black" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{d.id}</span>
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5"><X size={16} style={{ color: C.textDim }} /></button>
+          </div>
+          {/* Scrollable body */}
+          <div className="overflow-y-auto px-6 py-5 space-y-5" style={{ minHeight: 0 }}>
+
+        {/* Hero — square frame, image contained without stretching */}
+        <div onClick={isImg ? () => setLightbox(d.archivo) : undefined}
+          className="rounded-2xl overflow-hidden flex items-center justify-center relative group mx-auto"
+          style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})`, border: `1px solid ${C.border}`, aspectRatio: "1/1", maxWidth: 360, width: "100%", cursor: isImg ? "zoom-in" : "default" }}
+        >
+          {isImg
+            ? <img src={d.archivo.dataUrl} alt="" className="w-full h-full object-contain" />
+            : <div className="w-2/3 h-2/3"><JerseyMockup colors={d.colores} tipoPrenda={d.tipoPrenda} /></div>
+          }
+          <div className="absolute top-3 right-3"><Badge dot color={cfg.color} bg={cfg.bg}>{cfg.label}</Badge></div>
+          {isImg && <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.3)" }}><ZoomIn size={28} style={{ color: "#fff" }} /></div>}
+          <div className="absolute bottom-3 left-3 flex gap-1.5">
+            {d.colores?.map((c, i) => <div key={i} className="w-6 h-6 rounded-lg" style={{ background: c, border: "1px solid rgba(255,255,255,0.1)" }} title={c} />)}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[21px] font-black leading-tight" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>{d.nombre}</div>
+          <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>{d.cliente} · {d.tipoPrenda || "Camiseta"}</div>
+        </div>
+
+        <div className="flex gap-2">
+          <Btn variant="primary" icon={Download} onClick={() => downloadDesignSVG(d)}>Descargar SVG</Btn>
+          <Btn icon={MessageCircle} onClick={() => { if (!cli) { toast.warn("No hay cliente vinculado"); return; } window.open(`https://wa.me/${cli.whatsapp}?text=${encodeURIComponent(`Hola ${cli.nombre}! Te paso el mockup del diseño "${d.nombre}" (${d.id}) para que lo revises 🎨`)}`, "_blank"); }} disabled={!cli}>Enviar al cliente</Btn>
+        </div>
+
+        {d.archivo && (
+          <div>
+            <SectionLabel>Archivo adjunto</SectionLabel>
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+              {isImg ? <button onClick={() => setLightbox(d.archivo)} className="w-12 h-12 rounded-lg overflow-hidden shrink-0 hover:opacity-80 transition-opacity" style={{ border: `1px solid ${C.border}` }}><img src={d.archivo.dataUrl} alt="" className="w-full h-full object-cover" /></button>
+                : <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface3, color: C.accent }}><FileText size={20} /></div>}
+              <div className="flex-1 min-w-0">
+                <div className="text-[12.5px] font-semibold truncate" style={{ color: C.text }}>{d.archivo.name}</div>
+                <div className="text-[10px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{fmtBytes(d.archivo.size)}</div>
+              </div>
+              {d.archivo.dataUrl && <a href={d.archivo.dataUrl} download={d.archivo.name}><Btn size="sm" icon={Download} variant="ghost">Bajar</Btn></a>}
+            </div>
+          </div>
+        )}
+
+        {linkedOrder && (
+          <div>
+            <SectionLabel>Pedido vinculado</SectionLabel>
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.accentSoft, color: C.accent }}><Package size={15} /></div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] font-black" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{linkedOrder.id}</div>
+                <div className="text-[12.5px] font-semibold" style={{ color: C.text }}>{linkedOrder.cliente}</div>
+              </div>
+              <Badge dot color={estadoConfig[linkedOrder.estado].color} bg={estadoConfig[linkedOrder.estado].bg}>{estadoConfig[linkedOrder.estado].label}</Badge>
+            </div>
+          </div>
+        )}
+
+        {d.notas && (
+          <div>
+            <SectionLabel>Notas</SectionLabel>
+            <div className="text-[12.5px] p-3 rounded-xl leading-relaxed" style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }}>{d.notas}</div>
+          </div>
+        )}
+
+        <div className="flex gap-4 text-[11px]" style={{ color: C.textDim }}>
+          <div className="flex items-center gap-1.5"><Calendar size={11} /> <span style={{ fontFamily: "'JetBrains Mono', monospace", color: C.text }}>{d.fecha}</span></div>
+          <div className="flex items-center gap-1.5"><Hash size={11} /> <span style={{ fontFamily: "'JetBrains Mono', monospace", color: C.text }}>{d.id}</span></div>
+        </div>
+
+        <Divider />
+        <div className="flex justify-end"><Btn variant="danger" icon={Trash2} onClick={() => onDelete(d.id)}>Eliminar diseño</Btn></div>
+          </div>
+        </div>
+      </div>
+      {lightbox && <Lightbox archivo={lightbox} onClose={() => setLightbox(null)} />}
+    </>
+  );
+};
+
+const Disenos = ({ designs, setDesigns, customers, orders, pendingDesignView, clearPendingDesignView, searchQuery = "" }) => {
+  const [filtro, setFiltro] = useState("todos");
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    if (pendingDesignView) { const d = designs.find(x => x.id === pendingDesignView); if (d) setSelected(d); clearPendingDesignView?.(); }
+  }, [pendingDesignView]);
+
+  const q = searchQuery.trim().toLowerCase();
+  const matchSearch = d => !q ||
+    (d.nombre && d.nombre.toLowerCase().includes(q)) ||
+    (d.cliente && d.cliente.toLowerCase().includes(q)) ||
+    (d.id && d.id.toLowerCase().includes(q)) ||
+    (d.pedidoVinculado && d.pedidoVinculado.toLowerCase().includes(q));
+
+  const filtered = (filtro === "todos" ? designs : designs.filter(d => d.estado === filtro)).filter(matchSearch);
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="px-3 py-1.5 rounded-xl flex items-center gap-2" style={{ background: C.accentSoft, border: `1px solid ${C.accent}33` }}>
+            <Sparkles size={13} style={{ color: C.accent }} />
+            <span className="text-[10.5px] font-black uppercase tracking-widest" style={{ color: C.accent }}>LP DESIGN · Biblioteca</span>
+          </div>
+          <span className="text-[11px]" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{designs.length} diseños · {designs.filter(d => d.estado === "en_proceso").length} activos</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-5 flex-wrap">
+        {[{ k: "todos", l: "Todos" }, { k: "en_proceso", l: "En proceso" }, { k: "esperando_aprobacion", l: "Esperando" }, { k: "aprobado", l: "Aprobados" }].map(({ k, l }) => (
+          <button key={k} onClick={() => setFiltro(k)} className="px-3 py-1.5 rounded-xl text-[11.5px] font-bold transition-all" style={{ background: filtro === k ? C.accent : C.surface, color: filtro === k ? "#040a10" : C.textDim, border: `1px solid ${filtro === k ? C.accent : C.border}` }}>
+            {l} {k !== "todos" && <span className="opacity-60 ml-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{designs.filter(d => d.estado === k).length}</span>}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center">
+          <Palette size={28} className="mx-auto mb-3" style={{ color: C.textMute }} />
+          <div className="text-[14px] font-bold mb-1" style={{ color: C.text }}>Sin diseños en esta categoría</div>
+          <div className="text-[12px]" style={{ color: C.textDim }}>Los diseños se crean automáticamente desde Pedidos al adjuntar un archivo.</div>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filtered.map(d => {
+            const cfg = estadoDiseno[d.estado] || estadoDiseno.en_proceso;
+            return (
+              <div key={d.id} className="rounded-2xl overflow-hidden transition-all duration-150 hover:-translate-y-0.5 cursor-pointer" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                <div onClick={() => setSelected(d)} className="relative flex items-center justify-center overflow-hidden" style={{ height: 180, background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
+                  <div className="w-28 h-28"><JerseyMockup colors={d.colores} tipoPrenda={d.tipoPrenda} /></div>
+                  <div className="absolute top-2.5 right-2.5"><Badge dot color={cfg.color} bg={cfg.bg}>{cfg.label}</Badge></div>
+                  <div className="absolute bottom-2.5 left-2.5 flex gap-1">{d.colores?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: "1px solid rgba(0,0,0,0.4)" }} />)}</div>
+                  {d.pedidoVinculado && <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[9px] font-black flex items-center gap-1" style={{ background: "rgba(0,0,0,0.8)", color: C.text, fontFamily: "'JetBrains Mono', monospace" }}><Package size={8} /> {d.pedidoVinculado}</div>}
+                  {d.archivo && <div className="absolute bottom-2.5 right-2.5 w-5 h-5 rounded-md flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", color: C.accent }}><Paperclip size={9} /></div>}
+                </div>
+                <div className="p-3.5">
+                  <div className="text-[9.5px] font-black mb-1" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{d.id} · {d.tipoPrenda || "Camiseta"}</div>
+                  <div className="text-[13.5px] font-bold mb-0.5 truncate" style={{ color: C.text }}>{d.nombre}</div>
+                  <div className="text-[11px] mb-3 truncate" style={{ color: C.textDim }}>{d.cliente || "—"}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{d.fecha}</span>
+                    <div className="flex gap-1">
+                      {[{ icon: Eye, fn: () => setSelected(d), title: "Ver" }, { icon: Download, fn: () => downloadDesignSVG(d), title: "Descargar SVG" }, { icon: Send, fn: () => { const cli = customers.find(c => c.equipo === d.cliente || c.nombre === d.cliente); if (cli) window.open(`https://wa.me/${cli.whatsapp}?text=${encodeURIComponent(`Hola ${cli.nombre}! Mockup "${d.nombre}" listo para revisar 🎨`)}`, "_blank"); else toast.warn("Sin cliente vinculado"); }, title: "Enviar WP" }].map(({ icon: Ic, fn, title }) => (
+                        <button key={title} onClick={e => { e.stopPropagation(); fn(); }} title={title}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl transition-all hover:scale-110"
+                          style={{ background: C.surface2, color: C.textDim }}
+                          onMouseEnter={e => e.currentTarget.style.color = C.accent}
+                          onMouseLeave={e => e.currentTarget.style.color = C.textDim}
+                        ><Ic size={12} /></button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {selected && <DetalleDisenoDrawer design={selected} onClose={() => setSelected(null)} onDelete={id => { setDesigns(designs.filter(d => d.id !== id)); setSelected(null); }} customers={customers} orders={orders} />}
+    </div>
+  );
+};
+
+// ── Entregas page ─────────────────────────────────────────────────
+const Entregas = ({ orders, searchQuery = "" }) => {
+  const q = searchQuery.trim().toLowerCase();
+  const matchSearch = o => !q ||
+    (o.id && o.id.toLowerCase().includes(q)) ||
+    (o.cliente && o.cliente.toLowerCase().includes(q)) ||
+    (o.delegado && o.delegado.toLowerCase().includes(q));
+  const pendientes = orders.filter(o => ["aprobacion", "produccion"].includes(o.estado)).filter(matchSearch).sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega));
+  const entregados = orders.filter(o => o.estado === "entrega").filter(matchSearch).slice(0, 5);
+  const totalPendiente = pendientes.reduce((a, b) => a + b.saldo, 0);
+
+  return (
+    <div className="px-8 py-6 space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatChip label="Por entregar" value={pendientes.length} icon={Package} />
+        <StatChip label="Saldo pendiente" value={ARS(totalPendiente)} color={C.warn} icon={DollarSign} />
+        <StatChip label="Entregados" value={entregados.length} color={C.ok} icon={CheckCircle2} accent />
+      </div>
+
+      <Card className="p-5">
+        <SectionLabel className="mb-4">Próximas entregas</SectionLabel>
+        {pendientes.length === 0 ? (
+          <div className="text-[12px] py-6 text-center" style={{ color: C.textMute }}>No hay entregas pendientes 🎉</div>
+        ) : (
+          <div className="space-y-2">
+            {pendientes.map(o => {
+              const days = daysDiff(o.fechaEntrega); const isLate = days < 0; const isUrgent = days >= 0 && days <= 2;
+              const color = isLate ? C.danger : isUrgent ? C.warn : C.text;
+              return (
+                <div key={o.id} className="flex items-center gap-3 p-3.5 rounded-xl" style={{ background: C.surface2, border: `1px solid ${isLate ? C.danger + "44" : C.border}` }}>
+                  <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0" style={{ background: isLate ? C.dangerSoft : isUrgent ? "rgba(245,158,11,0.08)" : C.surface3 }}>
+                    <div className="text-[19px] font-black leading-none" style={{ color, fontFamily: "'JetBrains Mono', monospace" }}>{isLate ? Math.abs(days) : days}</div>
+                    <div className="text-[8px] font-black uppercase tracking-wider mt-0.5" style={{ color }}>{isLate ? "tarde" : "días"}</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[10px] font-black" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{o.id}</span>
+                      <Badge dot color={estadoConfig[o.estado].color} bg={estadoConfig[o.estado].bg}>{estadoConfig[o.estado].label}</Badge>
+                    </div>
+                    <div className="text-[13.5px] font-bold" style={{ color: C.text }}>{o.cliente}</div>
+                    <div className="text-[11px]" style={{ color: C.textDim }}>{o.produtos?.map(p => p.tipo).join(" · ") || o.productos?.map(p => p.tipo).join(" · ")}{o.delegado ? ` · ${o.delegado}` : ""}</div>
+                  </div>
+                  <div className="text-right shrink-0 space-y-1.5">
+                    <div className="text-[11.5px] font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>{ARS(o.total)}</div>
+                    {o.whatsapp
+                      ? <a href={`https://wa.me/${o.whatsapp}?text=${encodeURIComponent(`Hola! Tu pedido ${o.id} está listo para retirar 👕`)}`} target="_blank" rel="noreferrer"><Btn size="sm" icon={MessageCircle}>Avisar</Btn></a>
+                      : <Btn size="sm" icon={MessageCircle} disabled>Sin WP</Btn>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-5">
+        <SectionLabel className="mb-4">Entregas recientes</SectionLabel>
+        <div className="space-y-2">
+          {entregados.map(o => (
+            <div key={o.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+              <CheckCircle2 size={18} style={{ color: C.ok }} />
+              <div className="flex-1">
+                <div className="text-[13px] font-semibold" style={{ color: C.text }}>{o.cliente}</div>
+                <div className="text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{o.id} · {o.fechaEntrega}</div>
+              </div>
+              <div className="text-[12.5px] font-black" style={{ color: C.ok, fontFamily: "'JetBrains Mono', monospace" }}>{ARS(o.total)}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ── Planillas ───────────────────────────────────────────────────────
+const downloadPlanillaPNG = (order, empresa) => {
+  const roster = order.roster || [];
+  if (!roster.length) { toast.warn("La planilla está vacía. Agregá filas antes de descargar."); return; }
+  const W = 1000, pad = 48, hH = 130, thH = 42, rH = 38, fH = 80;
+  const H = pad + hH + thH + roster.length * rH + fH + pad;
+  const dpr = 2;
+  const canvas = Object.assign(document.createElement("canvas"), { width: W * dpr, height: H * dpr });
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr); ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+  const ec = empresa?.color || "#5EA9E8";
+  ctx.fillStyle = ec; ctx.fillRect(0, 0, W, 5);
+  ctx.fillStyle = "#0a0a0a"; ctx.font = "900 26px 'Barlow Condensed',Arial,sans-serif"; ctx.fillText("LP SPORT", pad, pad + 20);
+  ctx.fillStyle = ec; ctx.font = "700 11px Arial,sans-serif"; ctx.fillText("LP SPORT · PLANILLA DE PEDIDO", pad + ctx.measureText("LP SPORT").width + 14, pad + 18);
+  ctx.fillStyle = "#0a0a0a"; ctx.font = "700 22px Arial,sans-serif"; ctx.fillText(order.cliente, pad, pad + 60);
+  ctx.fillStyle = "#6b7280"; ctx.font = "500 12px 'Courier New',monospace"; ctx.fillText(`${order.id} · entrega ${order.fechaEntrega} · ${roster.length} filas`, pad, pad + 82);
+  ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad, pad + hH - 12); ctx.lineTo(W - pad, pad + hH - 12); ctx.stroke();
+  const cols = [{ key: "idx", label: "#", x: pad + 4, align: "left", w: 28 }, { key: "nombre", label: "NOMBRE", x: pad + 36, align: "left", w: 280 }, { key: "talle", label: "TALLE", x: pad + 336, align: "center", w: 70 }, { key: "cantidad", label: "CANT", x: pad + 426, align: "center", w: 60 }, { key: "adicionales", label: "ADICIONALES", x: pad + 506, align: "left", w: 270 }, { key: "total", label: "TOTAL", x: W - pad - 8, align: "right", w: 110 }];
+  let y = pad + hH;
+  ctx.fillStyle = "#f3f4f6"; ctx.fillRect(pad, y, W - 2 * pad, thH);
+  ctx.fillStyle = "#9ca3af"; ctx.font = "700 9.5px Arial,sans-serif";
+  cols.forEach(c => { ctx.textAlign = c.align; ctx.fillText(c.label, c.x, y + 26); }); ctx.textAlign = "left"; y += thH;
+  let sum = 0, units = 0;
+  roster.forEach((r, i) => {
+    if (i % 2) { ctx.fillStyle = "#fafafa"; ctx.fillRect(pad, y, W - 2 * pad, rH); }
+    ctx.strokeStyle = "#f1f5f9"; ctx.beginPath(); ctx.moveTo(pad, y + rH); ctx.lineTo(W - pad, y + rH); ctx.stroke();
+    ctx.fillStyle = "#9ca3af"; ctx.font = "600 10px 'Courier New',monospace"; ctx.textAlign = "left"; ctx.fillText(String(i + 1).padStart(2, "0"), cols[0].x, y + 23);
+    ctx.fillStyle = "#0a0a0a"; ctx.font = "500 13px Arial,sans-serif"; const nm = (r.nombre || "—").slice(0, 38); ctx.fillText(nm + (r.nombre?.length > 38 ? "…" : ""), cols[1].x, y + 23);
+    ctx.fillStyle = r.talle ? ec : "#9ca3af"; ctx.font = "700 12px 'Courier New',monospace"; ctx.textAlign = "center"; ctx.fillText(r.talle || "—", cols[2].x + 35, y + 23);
+    ctx.fillStyle = "#0a0a0a"; ctx.fillText(String(r.cantidad ?? 1), cols[3].x + 30, y + 23); units += Number(r.cantidad) || 0;
+    ctx.fillStyle = r.adicionales ? "#374151" : "#9ca3af"; ctx.font = "400 12px Arial,sans-serif"; ctx.textAlign = "left"; ctx.fillText((r.adicionales || "—").slice(0, 35), cols[4].x, y + 23);
+    const t = Number(r.total) || 0; sum += t; ctx.fillStyle = t > 0 ? "#0a0a0a" : "#9ca3af"; ctx.font = "600 12px 'Courier New',monospace"; ctx.textAlign = "right"; ctx.fillText(t > 0 ? `$${t.toLocaleString("es-AR")}` : "—", cols[5].x, y + 23);
+    y += rH;
+  });
+  ctx.textAlign = "left"; ctx.strokeStyle = "#e5e7eb"; ctx.beginPath(); ctx.rect(pad, pad + hH, W - 2 * pad, y - (pad + hH)); ctx.stroke();
+  y += 22;
+  if (sum > 0) { ctx.fillStyle = "#0a0a0a"; ctx.font = "700 13px Arial,sans-serif"; ctx.textAlign = "right"; ctx.fillText(`Total: $${sum.toLocaleString("es-AR")}`, W - pad, y + 6); }
+  ctx.fillStyle = "#9ca3af"; ctx.font = "400 10px 'Courier New',monospace"; ctx.textAlign = "left"; ctx.fillText(`${units} unidades · ${new Date().toLocaleDateString("es-AR")} · LP SPORT`, pad, y + 28);
+  canvas.toBlob(blob => {
+    if (!blob) { toast.err("Error al generar la imagen"); return; }
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement("a"), { href: url, download: `planilla-${order.id}-${(order.cliente || "").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png` });
+    document.body.appendChild(a); a.click(); setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    toast.ok("Planilla descargada");
+  }, "image/png");
+};
+
+const PlanillaPastePanel = ({ onApply, onAddFile, onCollapse, canCollapse }) => {
+  const [text, setText] = useState("");
+  const [showExample, setShowExample] = useState(false);
+  const parsed = useMemo(() => parseWhatsAppRoster(text), [text]);
+  const ref = useRef(null);
+  const fileRef = useRef(null);
+  useEffect(() => { setTimeout(() => ref.current?.focus(), 60); }, []);
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > MAX_FILE_BYTES) { toast.err(`Archivo demasiado grande (${fmtBytes(f.size)}). Máx: 50MB`); return; }
+    const r = new FileReader();
+    r.onload = () => onAddFile && onAddFile({ name: f.name, size: f.size, type: f.type, dataUrl: r.result });
+    r.readAsDataURL(f);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="p-5 rounded-2xl mb-4" style={{ background: C.surface, boxShadow: ELEV.card }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.accentSoft, color: C.accent, boxShadow: ELEV.highlight }}><ClipboardPaste size={15} /></div>
+          <div>
+            <div className="text-[14px] font-semibold tracking-tight" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>Importar lista del cliente</div>
+            <div className="text-[11.5px]" style={{ color: C.textDim }}>Pegá el mensaje, subí un archivo, o agregalas a mano.</div>
+          </div>
+        </div>
+        {canCollapse && <Btn size="sm" variant="ghost" onClick={onCollapse}>Cerrar</Btn>}
+      </div>
+
+      <textarea ref={ref} value={text} onChange={e => setText(e.target.value)} rows={6}
+        placeholder={"Pegá acá la lista del cliente…"}
+        className="w-full px-3.5 py-3 rounded-xl outline-none resize-none mb-2 focus:ring-1 focus:ring-[#5EA9E8]/30"
+        style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.65, transition: "border-color 150ms" }}
+      />
+
+      {/* Reference example — collapsed by default, one full line */}
+      <div className="mb-3">
+        <button onClick={() => setShowExample(s => !s)} className="text-[11px] inline-flex items-center gap-1.5" style={{ color: C.textDim }}>
+          <ChevronRight size={11} style={{ transform: showExample ? "rotate(90deg)" : "rotate(0)", transition: "transform 180ms" }} />
+          Ver ejemplo de formato
+        </button>
+        {showExample && (
+          <div className="mt-2 p-3 rounded-xl text-[12.5px]" style={{ background: C.surface2, color: C.textDim, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, boxShadow: ELEV.highlight }}>
+            <span style={{ color: C.text }}>Juan Pérez M 10 capitán</span>
+            <div className="text-[11px] mt-2" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif" }}>El parser detecta nombre, talle, número, cantidad y palabras clave como capitán, arquero, bordado, etc.</div>
+          </div>
+        )}
+      </div>
+
+      {/* File upload alternative */}
+      <div className="mb-3 flex items-center gap-2 text-[11.5px]" style={{ color: C.textDim }}>
+        <div className="flex-1 h-px" style={{ background: C.border }} />
+        <span>o</span>
+        <div className="flex-1 h-px" style={{ background: C.border }} />
+      </div>
+      <button onClick={() => fileRef.current?.click()} className="w-full p-3 rounded-xl flex items-center gap-3 transition-all"
+        style={{ background: C.surface2, boxShadow: ELEV.highlight }}
+        onMouseEnter={e => e.currentTarget.style.boxShadow = ELEV.card}
+        onMouseLeave={e => e.currentTarget.style.boxShadow = ELEV.highlight}
+      >
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.surface3, color: C.accent }}><UploadCloud size={15} /></div>
+        <div className="text-left flex-1">
+          <div className="text-[12.5px] font-semibold" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>Subir archivo de la lista</div>
+          <div className="text-[10.5px]" style={{ color: C.textMute }}>PDF · Imagen · documento de Word — se adjunta como referencia</div>
+        </div>
+        <input ref={fileRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.txt,.csv,.xlsx" onChange={handleFile} />
+      </button>
+
+      {text.trim() && (
+        <div className="mt-3">
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: parsed.length ? C.accent : C.textMute, fontFamily: "'Barlow', sans-serif" }}>
+            {parsed.length ? `${parsed.length} ${parsed.length === 1 ? "fila detectada" : "filas detectadas"}` : "Sin filas detectadas"}
+          </div>
+          {parsed.length === 0
+            ? <div className="p-3 rounded-xl text-[12px]" style={{ background: C.surface2, color: C.textMute, boxShadow: ELEV.highlight }}>No detecté nada parseable. Cada línea debería tener al menos un talle (S/M/L/XL/XXL).</div>
+            : (
+              <div className="rounded-xl overflow-hidden max-h-52 overflow-y-auto" style={{ background: C.surface2, boxShadow: ELEV.highlight }}>
+                <table className="w-full text-[12.5px]" style={PREMIUM_FONT}>
+                  <thead style={{ background: "rgba(255,255,255,0.02)", position: "sticky", top: 0 }}>
+                    <tr>{["Nombre", "Talle", "Cant", "Adicionales"].map(h => <th key={h} className="text-left text-[10px] font-bold uppercase tracking-[0.16em] px-3 py-2" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif" }}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {parsed.map((r, i) => (
+                      <tr key={r.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : "none" }}>
+                        <td className="px-3 py-2" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>{r.nombre || <span style={{ color: C.textMute }}>(sin nombre)</span>}</td>
+                        <td className="text-center px-3 py-2 font-bold" style={{ color: r.talle ? C.accent : C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{r.talle || "—"}</td>
+                        <td className="text-right px-3 py-2" style={{ color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{r.cantidad}</td>
+                        <td className="px-3 py-2 text-[11px]" style={{ color: C.textDim, fontFamily: "'Barlow', sans-serif" }}>{r.adicionales || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 mt-4">
+        <Btn variant="ghost" onClick={() => setText("")} disabled={!text}>Limpiar</Btn>
+        <Btn variant="primary" icon={CheckCircle2} onClick={() => { onApply(parsed); setText(""); }} disabled={parsed.length === 0}>
+          {parsed.length > 0 ? `Agregar ${parsed.length} ${parsed.length === 1 ? "fila" : "filas"}` : "Agregar filas"}
+        </Btn>
+      </div>
+    </div>
+  );
+};
+
+const PlanillaEditor = ({ order, empresa, onBack, onUpdate }) => {
+  const roster = order.roster || [];
+  const attachedFiles = order.archivosPlanilla || [];
+  const [showPaste, setShowPaste] = useState(roster.length === 0 && attachedFiles.length === 0);
+  const [lightbox, setLightbox] = useState(null);
+  const totalUnidades = roster.reduce((a, b) => a + (Number(b.cantidad) || 0), 0);
+  const totalMoney = roster.reduce((a, b) => a + (Number(b.total) || 0), 0);
+
+  const updateRoster = (newRoster) => onUpdate({ ...order, roster: newRoster });
+  const addFile = (file) => onUpdate({ ...order, archivosPlanilla: [...attachedFiles, file] });
+  const removeFile = (idx) => onUpdate({ ...order, archivosPlanilla: attachedFiles.filter((_, i) => i !== idx) });
+
+  return (
+    <div className="px-8 py-6">
+      <button onClick={onBack} className="flex items-center gap-1.5 text-[11.5px] mb-4 transition-colors" style={{ color: C.textDim }}
+        onMouseEnter={e => e.currentTarget.style.color = C.text} onMouseLeave={e => e.currentTarget.style.color = C.textDim}>
+        <ArrowLeft size={13} /> Volver a Planillas
+      </button>
+
+      <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
+        <div className="min-w-0 flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[13px] font-black shrink-0" style={{
+            background: "linear-gradient(135deg, " + (empresa?.color || C.accent) + "33, " + (empresa?.color || C.accent) + "11)",
+            color: empresa?.color || C.accent,
+            boxShadow: "inset 0 1px 0 0 " + (empresa?.color || C.accent) + "44, 0 0 0 1px " + (empresa?.color || C.accent) + "33",
+            fontFamily: "'Barlow Condensed', sans-serif"
+          }}>{getInitials(order.cliente)}</div>
+          <div>
+            <div className="text-[22px] font-bold" style={{ color: C.text, fontFamily: "'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{order.cliente}</div>
+            <div className="text-[11px]" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>
+              {order.id} · entrega {order.fechaEntrega}
+              {roster.length > 0 && ` · ${roster.length} filas · ${totalUnidades} unid.${totalMoney > 0 ? ` · ${ARS(totalMoney)}` : ""}`}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {!showPaste && <Btn variant="ghost" icon={ClipboardPaste} onClick={() => setShowPaste(true)}>Importar lista</Btn>}
+          <Btn variant="primary" icon={Download} onClick={() => downloadPlanillaPNG(order, empresa)} disabled={roster.length === 0}>Descargar imagen</Btn>
+        </div>
+      </div>
+
+      {/* Attached files chip list */}
+      {attachedFiles.length > 0 && (
+        <div className="mb-4">
+          <SectionLabel>Adjuntos de la planilla · {attachedFiles.length}</SectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+            {attachedFiles.map((a, i) => {
+              const isImg = a.type?.startsWith("image/") && a.dataUrl;
+              return (
+                <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl group" style={{ background: C.surface2, boxShadow: ELEV.card }}>
+                  {isImg ? (
+                    <button onClick={() => setLightbox(a)} className="w-12 h-12 rounded-lg overflow-hidden shrink-0" style={{ cursor: "zoom-in", boxShadow: ELEV.highlight }}>
+                      <img src={a.dataUrl} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface3, color: C.accent }}><FileText size={18} /></div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12.5px] font-semibold truncate" style={{ color: C.text }}>{a.name}</div>
+                    <div className="text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{fmtBytes(a.size)}</div>
+                  </div>
+                  <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                    {a.dataUrl && <a href={a.dataUrl} download={a.name} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5" title="Descargar"><Download size={12} style={{ color: C.textDim }} /></a>}
+                    <button onClick={() => removeFile(i)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-500/10" title="Quitar"><X size={12} style={{ color: C.textDim }} /></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {showPaste && <PlanillaPastePanel
+        onApply={rows => { updateRoster([...roster, ...rows]); setShowPaste(false); toast.ok(`${rows.length} ${rows.length === 1 ? "fila importada" : "filas importadas"}`); }}
+        onAddFile={(f) => { addFile(f); toast.ok(`Archivo "${f.name}" adjuntado`); }}
+        onCollapse={() => setShowPaste(false)}
+        canCollapse={roster.length > 0 || attachedFiles.length > 0}
+      />}
+
+      {roster.length === 0 && !showPaste ? (
+        <Card className="p-14 text-center">
+          <ClipboardList size={28} className="mx-auto mb-3" style={{ color: C.textMute }} />
+          <div className="text-[15px] font-bold mb-1" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>Planilla vacía</div>
+          <div className="text-[12.5px] mb-4" style={{ color: C.textDim }}>Pegá el mensaje del cliente, subí un archivo, o agregá filas a mano.</div>
+          <Btn variant="primary" icon={ClipboardPaste} onClick={() => setShowPaste(true)}>Importar lista</Btn>
+        </Card>
+      ) : (
+        <Card className="p-5">
+          <RosterGrid roster={roster} onChange={updateRoster} />
+        </Card>
+      )}
+
+      {lightbox && <Lightbox archivo={lightbox} onClose={() => setLightbox(null)} />}
+    </div>
+  );
+};
+
+const PlanillasList = ({ orders, empresas, onSelect, searchQuery = "" }) => {
+  const q = searchQuery.trim().toLowerCase();
+  const planillas = orders
+    .filter(o => o.roster?.length > 0)
+    .filter(o => !q || (o.id && o.id.toLowerCase().includes(q)) || (o.cliente && o.cliente.toLowerCase().includes(q)));
+  if (!planillas.length) return (
+    <div className="px-8 py-6">
+      <Card className="p-14 text-center">
+        <ClipboardList size={32} className="mx-auto mb-4" style={{ color: C.textMute }} />
+        <div className="text-[15px] font-bold mb-1.5" style={{ color: C.text }}>{q ? `Sin planillas para "${searchQuery}"` : "Todavía no hay planillas armadas"}</div>
+        <div className="text-[12px] max-w-md mx-auto" style={{ color: C.textDim, lineHeight: 1.6 }}>
+          {q ? "Probá otro término o vaciá la búsqueda." : "Para crear una planilla, entrá a cualquier pedido desde Pedidos y tocá \"Crear planilla\". El mensaje del cliente se pega ahí mismo y la planilla se arma automáticamente."}
+        </div>
+      </Card>
+    </div>
+  );
+  return (
+    <div className="px-8 py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {planillas.map(o => {
+        const empresa = empresas.find(e => e.nombre === o.cliente);
+        const totalUnid = o.roster.reduce((a, b) => a + (Number(b.cantidad) || 0), 0);
+        const totalMoney = o.roster.reduce((a, b) => a + (Number(b.total) || 0), 0);
+        const ec = empresa?.color || C.accent;
+        return (
+          <Tilt3D key={o.id} intensity={4} onClick={() => onSelect(o.id)} className="cursor-pointer">
+            <div className="rounded-2xl p-5 text-left"
+              style={{
+                background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+                boxShadow: ELEV.card,
+                transition: "box-shadow 240ms cubic-bezier(.2,.8,.2,1)"
+              }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = ELEV.cardHover.replace("rgba(94,169,232,0.08)", ec + "20")}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = ELEV.card}
+            >
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[13px] font-black shrink-0" style={{
+                  background: "linear-gradient(135deg, " + ec + "33 0%, " + ec + "11 100%)",
+                  color: ec,
+                  boxShadow: "inset 0 1px 0 0 " + ec + "44, 0 0 0 1px " + ec + "33",
+                  fontFamily: "'Barlow Condensed', sans-serif"
+                }}>{getInitials(o.cliente)}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-bold truncate" style={{ color: C.text, letterSpacing: "-0.01em" }}>{o.cliente}</div>
+                  <div className="text-[10px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{o.id}</div>
+                </div>
+              </div>
+              {o.productos?.length > 0 && <div className="text-[11px] mb-3 truncate" style={{ color: C.textDim }}>{o.productos.map(p => p.tipo).join(" · ")}</div>}
+              <div className="flex items-end justify-between pt-3" style={{ borderTop: `1px solid ${C.border}` }}>
+                <div>
+                  <div className="text-[24px] font-black leading-none" style={{ color: ec, fontFamily: "'Barlow Condensed', sans-serif", ...PREMIUM_FONT }}>{o.roster.length}</div>
+                  <div className="text-[9px] uppercase tracking-[0.2em] mt-1 font-bold" style={{ color: C.textMute }}>filas</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[12.5px] font-bold" style={{ color: C.text, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{totalUnid} unid.</div>
+                  {totalMoney > 0 && <div className="text-[10.5px] mt-0.5" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{ARS(totalMoney)}</div>}
+                </div>
+              </div>
+            </div>
+          </Tilt3D>
+        );
+      })}
+    </div>
+  );
+};
+
+const Planillas = ({ orders, setOrders, empresas, pendingPlanillaOrderId, clearPendingPlanillaOrderId, searchQuery = "" }) => {
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  useEffect(() => { if (pendingPlanillaOrderId) { setSelectedOrderId(pendingPlanillaOrderId); clearPendingPlanillaOrderId?.(); } }, [pendingPlanillaOrderId]);
+  useEffect(() => { if (selectedOrderId && !orders.find(o => o.id === selectedOrderId)) setSelectedOrderId(null); }, [selectedOrderId, orders]);
+
+  const selectedOrder = selectedOrderId ? orders.find(o => o.id === selectedOrderId) : null;
+  if (selectedOrder) {
+    const empresa = empresas.find(e => e.nombre === selectedOrder.cliente);
+    return <PlanillaEditor order={selectedOrder} empresa={empresa} onBack={() => setSelectedOrderId(null)} onUpdate={updated => setOrders(orders.map(o => o.id === updated.id ? updated : o))} />;
+  }
+  return <PlanillasList orders={orders} empresas={empresas} onSelect={setSelectedOrderId} searchQuery={searchQuery} />;
+};
+
+// ── ROOT APP ─────────────────────────────────────────────────────
+export default function BerastoreSystem() {
+  const [page, setPage] = useState("pedidos");
+  const [orders, setOrders] = usePersistedState("lpsport:orders:v8", seedOrders);
+  const [customers] = usePersistedState("lpsport:customers:v8", seedCustomers);
+  const [designs, setDesigns] = usePersistedState("lpsport:designs:v8", seedDesigns);
+  const [empresas, setEmpresas] = usePersistedState("lpsport:empresas:v8", seedEmpresas);
+  const [pendingDesignView, setPendingDesignView] = useState(null);
+  const [pendingPlanillaOrderId, setPendingPlanillaOrderId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showWelcome, setShowWelcome] = useState(false);
+  const mode = useStorageMode();
+
+  // Probe the backend ONCE on mount to decide storage mode
+  useEffect(() => { probeApiOnce(); }, []);
+
+  useEffect(() => {
+    // Only offer the desktop-download prompt when we're authenticated against the API
+    // (not when in login screen, not when already standalone)
+    if (mode !== "api") return;
+    try { if (!localStorage.getItem(WELCOME_KEY)) setShowWelcome(true); } catch {}
+  }, [mode]);
+  const searchInputRef = useRef(null);
+
+  // Reset search when switching pages
+  useEffect(() => { setSearchQuery(""); }, [page]);
+
+  // Cmd+K / Ctrl+K to focus search
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === "Escape" && document.activeElement === searchInputRef.current) {
+        setSearchQuery("");
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const openDesign = id => { if (!id) return; const e = designs.find(d => d.id === id); if (!e) { toast.warn(`El diseño ${id} no está en la biblioteca`); setPage("diseno"); return; } setPendingDesignView(id); setPage("diseno"); };
+  const openPlanilla = id => { if (!id) return; setPendingPlanillaOrderId(id); setPage("planillas"); };
+
+  const lateCount = orders.filter(o => o.estado !== "entrega" && daysDiff(o.fechaEntrega) < 0).length;
+
+  const pageTitles = {
+    pedidos:  { title: "PEDIDOS",   placeholder: "Buscar empresa, pedido, cliente…" },
+    planillas:{ title: "PLANILLAS", placeholder: "Buscar planilla…" },
+    diseno:   { title: "LP DESIGN", placeholder: "Buscar diseño…" },
+    entregas: { title: "ENTREGAS",  placeholder: "Buscar pedido…" }
+  };
+
+  // If the backend says we need to log in, show only the login screen
+  if (mode === "login") {
+    return <LoginScreen onLoggedIn={() => { setStorageMode("api"); }} />;
+  }
+
+  return (
+    <div className="min-h-screen flex relative" style={{
+      background: C.bg,
+      color: C.text,
+      fontFamily: "'Barlow', system-ui, sans-serif",
+      ...PREMIUM_FONT
+    }}>
+      {/* Subtle background grid pattern — premium app feel */}
+      <div className="fixed inset-0 pointer-events-none" style={{
+        backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.018) 1px, transparent 0)`,
+        backgroundSize: "32px 32px",
+        zIndex: 0
+      }} />
+      {/* Subtle accent glow at top-left */}
+      <div className="fixed pointer-events-none" style={{
+        top: -200,
+        left: 220,
+        width: 700,
+        height: 700,
+        background: "radial-gradient(circle, rgba(94,169,232,0.05) 0%, transparent 60%)",
+        zIndex: 0
+      }} />
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; box-sizing: border-box; }
+        body { background: ${C.bg}; margin: 0; font-feature-settings: 'tnum' 1; color: ${C.text}; }
+        ::selection { background: ${C.accentGlow}; color: ${C.text}; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 4px; transition: background 200ms; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .roster-cell:hover { background: rgba(255,255,255,0.03) !important; }
+        .roster-cell:focus { background: ${C.surface3} !important; box-shadow: 0 0 0 2px ${C.accentGlow}; border-radius: 6px; }
+        select.roster-cell { appearance: none; -webkit-appearance: none; cursor: pointer; }
+        @keyframes fadeSlideIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes toastSlide { from { opacity: 0; transform: translateX(20px) translateY(8px); } to { opacity: 1; transform: translateX(0) translateY(0); } }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .toast-enter { animation: toastIn 280ms cubic-bezier(.2,.8,.2,1) both; }
+        .fade-in { animation: fadeSlideIn 280ms cubic-bezier(.2,.8,.2,1) both; }
+        .card-hover { transition: transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 240ms cubic-bezier(.2,.8,.2,1); }
+        .card-hover:hover { transform: translateY(-2px); }
+        button { font-family: inherit; }
+        /* Drag-and-drop visual states (preserved from v5) */
+        .dnd-dragging { opacity: 0.35; transform: rotate(-1deg) scale(0.97); cursor: grabbing !important; }
+        .dnd-droptarget { background: rgba(94,169,232,0.06) !important; outline: 2px dashed rgba(94,169,232,0.4); outline-offset: -8px; transition: all 180ms; }
+        .dnd-card { cursor: grab; transition: transform 200ms cubic-bezier(.2,.8,.2,1), box-shadow 200ms ease; }
+        .dnd-card:active { cursor: grabbing; }
+        /* 3D Logo idle subtle wobble — only when not hovering */
+        @keyframes logoIdle {
+          0%, 100% { transform: rotateX(0deg) rotateY(0deg); }
+          50% { transform: rotateX(-2deg) rotateY(3deg); }
+        }
+      `}</style>
+
+      <Sidebar page={page} setPage={setPage} orders={orders} empresas={empresas} />
+      <ToastContainer />
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+
+      <main className="flex-1 min-w-0 relative" style={{ zIndex: 1 }}>
+        <Topbar
+          title={pageTitles[page].title}
+          searchValue={searchQuery}
+          onSearchChange={e => setSearchQuery(e.target.value)}
+          searchRef={searchInputRef}
+          searchPlaceholder={pageTitles[page].placeholder}
+          action={
+            <div className="hidden md:flex items-center gap-1.5">
+              <Btn variant="ghost" icon={Download} onClick={() => exportBackup({ orders, customers, designs, empresas })}>Exportar</Btn>
+              <Btn variant="ghost" icon={Upload} onClick={() => document.getElementById("lp-restore-input")?.click()}>Importar</Btn>
+              <input
+                id="lp-restore-input"
+                type="file"
+                accept="application/json,.json"
+                style={{ display: "none" }}
+                onChange={(e) => { importBackup(e.target.files?.[0], { setOrders, setDesigns, setEmpresas }); e.target.value = ""; }}
+              />
+              <Btn variant="ghost" icon={Activity} onClick={() => { if (confirm("¿Restaurar datos de demo? Se sobrescribe todo lo actual.")) { setOrders(seedOrders); setDesigns(seedDesigns); setEmpresas(seedEmpresas); toast.ok("Datos de demo restaurados"); } }}>Demo</Btn>
+            </div>
+          }
+        />
+        <div className="fade-in" key={page}>
+          {page === "pedidos"  && <Pedidos orders={orders} setOrders={setOrders} customers={customers} designs={designs} setDesigns={setDesigns} empresas={empresas} setEmpresas={setEmpresas} onViewDesign={openDesign} onOpenPlanilla={openPlanilla} searchQuery={searchQuery} />}
+          {page === "planillas"  && <Planillas orders={orders} setOrders={setOrders} empresas={empresas} pendingPlanillaOrderId={pendingPlanillaOrderId} clearPendingPlanillaOrderId={() => setPendingPlanillaOrderId(null)} searchQuery={searchQuery} />}
+          {page === "diseno"   && <Disenos designs={designs} setDesigns={setDesigns} customers={customers} orders={orders} pendingDesignView={pendingDesignView} clearPendingDesignView={() => setPendingDesignView(null)} searchQuery={searchQuery} />}
+          {page === "entregas" && <Entregas orders={orders} searchQuery={searchQuery} />}
+        </div>
+      </main>
+    </div>
+  );
+}
