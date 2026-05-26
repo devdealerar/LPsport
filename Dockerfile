@@ -5,8 +5,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY server.js .
-RUN mkdir -p public
-COPY lp_sport.html ./public/index.html
+COPY lp_sport.html .
 
 ENV PORT=3000
 EXPOSE 3000
