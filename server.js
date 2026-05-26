@@ -303,15 +303,11 @@ app.get("/api/health", async (_req, res) => {
 });
 
 // ── Static frontend ──────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, "public"), {
-  maxAge: "1h",
-  setHeaders: (res, filePath) => { if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache"); }
-}));
-
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) return next();
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(path.join(__dirname, "lp_sport.html"));
 });
+
 
 // ── Start ────────────────────────────────────────────────────────
 initDB().then(() => {
