@@ -1038,17 +1038,25 @@ const Drawer = ({ onClose, children }) => {
 
 // ── LoginScreen: shown when backend reports 401 ──────────────────
 const LoginScreen = ({ onLoggedIn }) => {
+  const [roleSelected, setRoleSelected] = useState(null); // "admin" | "empleado"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef(null);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => { if (roleSelected) setTimeout(() => inputRef.current?.focus(), 50); }, [roleSelected]);
+
+  const selectRole = (r) => {
+    setRoleSelected(r);
+    setUsername(r === "admin" ? "admin" : "");
+    setPassword("");
+    setError("");
+  };
 
   const submit = async (e) => {
     e?.preventDefault();
-    if (submitting) return;
+    if (submitting || !roleSelected) return;
     setSubmitting(true); setError("");
     try {
       const r = await fetch("/api/login", {
@@ -1063,14 +1071,16 @@ const LoginScreen = ({ onLoggedIn }) => {
         onLoggedIn?.();
       } else {
         const d = await r.json().catch(() => ({}));
-        setError(d.error || "No se pudo iniciar sesión");
+        setError(d.error || "Usuario o contraseña incorrectos");
       }
-    } catch (err) {
+    } catch {
       setError("Error de red — verificá la conexión");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const canSubmit = roleSelected && password && (roleSelected === "admin" || username);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{
@@ -1078,7 +1088,7 @@ const LoginScreen = ({ onLoggedIn }) => {
       backgroundImage: `radial-gradient(circle at 30% 20%, rgba(94,169,232,0.10) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(94,169,232,0.06) 0%, transparent 50%)`,
       ...PREMIUM_FONT
     }}>
-      <form onSubmit={submit} className="w-full max-w-sm">
+      <div className="w-full max-w-sm">
         <div className="text-center mb-7">
           <div className="flex justify-center mb-5"><LP3DLogo size={72} /></div>
           <div className="text-[20px] font-bold tracking-[0.04em]" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>LP SPORT</div>
@@ -1089,54 +1099,87 @@ const LoginScreen = ({ onLoggedIn }) => {
           background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
           boxShadow: ELEV.floating
         }}>
+          {/* Selector de tipo de acceso */}
           <div>
-            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Usuario</div>
-            <input
-              ref={inputRef}
-              type="text"
-              value={username}
-              onChange={e => { setUsername(e.target.value); setError(""); }}
-              placeholder="tu usuario"
-              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
-              style={{
-                background: C.surface2,
-                color: C.text,
-                border: `1px solid ${error ? C.danger + "55" : C.border}`,
-                fontFamily: "'JetBrains Mono', monospace",
-                ...PREMIUM_FONT
-              }}
-              autoComplete="username"
-            />
-          </div>
-          <div>
-            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
-            <input
-              type="password"
-              value={password}
-              onChange={e => { setPassword(e.target.value); setError(""); }}
-              placeholder="tu contraseña"
-              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
-              style={{
-                background: C.surface2,
-                color: C.text,
-                border: `1px solid ${error ? C.danger + "55" : C.border}`,
-                fontFamily: "'JetBrains Mono', monospace",
-                ...PREMIUM_FONT
-              }}
-              autoComplete="current-password"
-            />
-            {error && <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: C.danger }}><AlertTriangle size={11} />{error}</div>}
+            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-3" style={{ color: C.textMute }}>Tipo de acceso</div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: "admin",    label: "Admin",    icon: <Shield size={26} /> },
+                { key: "empleado", label: "Empleado", icon: <User   size={26} /> }
+              ].map(({ key, label, icon }) => (
+                <button key={key} type="button" onClick={() => selectRole(key)}
+                  className="flex flex-col items-center gap-2 py-5 rounded-xl transition-all select-none"
+                  style={{
+                    background: roleSelected === key ? `${C.accent}20` : C.surface2,
+                    border: `2px solid ${roleSelected === key ? C.accent : C.border}`,
+                    color: roleSelected === key ? C.accent : C.textDim,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    letterSpacing: "0.06em",
+                    cursor: "pointer",
+                  }}>
+                  {icon}
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <Btn variant="primary" onClick={submit} disabled={submitting || !username || !password} className="w-full justify-center">
-            {submitting ? "Entrando…" : "Entrar"}
-          </Btn>
+          {/* Formulario, aparece al seleccionar rol */}
+          {roleSelected && (
+            <form onSubmit={submit} className="space-y-3">
+              {roleSelected === "empleado" && (
+                <div>
+                  <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Usuario</div>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={username}
+                    onChange={e => { setUsername(e.target.value); setError(""); }}
+                    placeholder="tu usuario"
+                    className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
+                    style={{
+                      background: C.surface2,
+                      color: C.text,
+                      border: `1px solid ${error ? C.danger + "55" : C.border}`,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      ...PREMIUM_FONT
+                    }}
+                    autoComplete="username"
+                  />
+                </div>
+              )}
+              <div>
+                <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
+                <input
+                  ref={roleSelected === "admin" ? inputRef : undefined}
+                  type="password"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setError(""); }}
+                  placeholder="tu contraseña"
+                  className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
+                  style={{
+                    background: C.surface2,
+                    color: C.text,
+                    border: `1px solid ${error ? C.danger + "55" : C.border}`,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    ...PREMIUM_FONT
+                  }}
+                  autoComplete="current-password"
+                />
+                {error && <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: C.danger }}><AlertTriangle size={11} />{error}</div>}
+              </div>
+              <Btn variant="primary" onClick={submit} disabled={submitting || !canSubmit} className="w-full justify-center">
+                {submitting ? "Entrando…" : "Entrar"}
+              </Btn>
+            </form>
+          )}
         </div>
 
         <div className="text-center mt-5 text-[10.5px]" style={{ color: C.textMute }}>
           Sesión protegida · Tus datos se sincronizan entre tus dispositivos
         </div>
-      </form>
+      </div>
     </div>
   );
 };
