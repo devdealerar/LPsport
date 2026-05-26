@@ -4,14 +4,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LP SPORT — Sistema de pedidos</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%235EA9E8'/><g transform='skewX(-10) translate(6 0)' fill='white'><path d='M 27 22 L 30 22 C 33 22 35 24 35 27 L 35 57 L 59 57 C 62 57 64 59 64 62 L 64 65 C 64 68 62 70 59 70 L 27 70 C 24 70 22 68 22 65 L 22 27 C 22 24 24 22 27 22 Z'/><path fill-rule='evenodd' d='M 52 22 L 60 22 C 78 22 84 28 84 36 C 84 44 78 50 60 50 L 60 65 C 60 68 58 70 55 70 L 52 70 C 49 70 47 68 47 65 L 47 27 C 47 24 49 22 52 22 Z M 60 30 L 68 30 C 73 30 75 33 75 36 C 75 39 73 42 68 42 L 60 42 Z'/></g></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230A0A0A'/><g fill='white'><path d='M 2 2 L 7 2 L 7 80 L 30 80 L 55 98 L 2 98 Z'/><path fill-rule='evenodd' d='M 22 2 L 95 2 L 78 26 L 28 26 L 28 98 L 22 98 Z M 40 8 L 76 8 L 60 24 Z'/><path d='M 28 30 L 98 54 L 28 76 Z'/></g></svg>">
+
+  <!-- v11: PWA manifest + theme color + Apple touch icon (only effective when served from the deployed backend) -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0a0a0b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LP SPORT">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png">
+
+  <!-- D-DIN Expanded from Fontshare CDN — primary brand typography for v11 -->
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=d-din-exp@400,500,600,700,900&display=swap" rel="stylesheet">
+  <!-- JetBrains Mono for tabular numerics and IDs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html, body { margin: 0; padding: 0; background: #0a0a0a; color: #f3f3f5; min-height: 100vh; font-family: 'Barlow', system-ui, sans-serif; }
+    html, body { margin: 0; padding: 0; background: #0a0a0a; color: #f3f3f5; min-height: 100vh; font-family: 'D-DIN Expanded', 'Barlow', system-ui, sans-serif; }
     .lp-loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; z-index: 1000; }
     .lp-spinner { width: 36px; height: 36px; border: 3px solid rgba(94,169,232,0.15); border-top-color: #5EA9E8; border-radius: 50%; animation: lp-spin 0.8s linear infinite; }
     @keyframes lp-spin { to { transform: rotate(360deg); } }
-    .lp-loading-text { font-size: 12px; color: #5a5a62; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+    .lp-loading-text { font-size: 12px; color: #5a5a62; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-family: 'D-DIN Expanded', system-ui, sans-serif; }
+    /* Force all elements to use the brand stack by default; specific monospace overrides remain inline */
+    * { font-family: inherit; }
   </style>
 </head>
 <body>
@@ -57,6 +78,7 @@ import {
   Clock, UploadCloud, FileText, Paperclip, ArrowLeft, Folder, Building2,
   ZoomIn, ClipboardPaste, ClipboardList, Printer, TrendingUp, Users, BarChart2,
   Upload, Copy, ArrowUpDown,
+  Home, Command, Wifi, WifiOff, Archive, Zap,
   Shield, User
 } from "lucide-react";
 
@@ -120,7 +142,7 @@ const getInitials = (name = "") => {
 const TALLES_ARR = ["XXXL", "XXL", "XL", "L", "M", "S", "XS"];
 const SKIP_LINE_REGEX = /^(hola|buenas?|buen\s+d[ií]a|necesito|para|equipo|gracias|ok|si|listo|chau|saludos|nombre[s]?|talle[s]?|cantidad|listado|jugadores|lista|n[uú]mero[s]?|total)\b/i;
 const newRowId = () => `R-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-const newRow = (over = {}) => ({ id: newRowId(), nombre: "", cantidad: 1, talle: "", adicionales: "", total: 0, ...over });
+const newRow = (over = {}) => ({ id: newRowId(), nombre: "", camiseta: 1, short: 0, talle: "", ...over });
 const ROSTER_KEYWORDS = [
   { re: /\bcapit[aá]n\b/i, label: "capitán" }, { re: /\barquer[oa]\b/i, label: "arquero" },
   { re: /\bdt\b/i, label: "DT" }, { re: /\bt[eé]cnico\b/i, label: "técnico" },
@@ -135,9 +157,13 @@ function parseWhatsAppRoster(text) {
     if (!clean || clean.length < 2 || SKIP_LINE_REGEX.test(clean)) return rows;
     clean = clean.replace(/\$\s*[\d\.\,]+/g, "").trim();
     let work = clean.replace(/[\(\)]/g, " ").replace(/[,;|]/g, " ").replace(/\s+-\s+/g, " ").replace(/\s*[/]\s*/g, " ").replace(/\s+/g, " ").trim();
-    let numero = "";
-    const numKW = work.match(/(?:#|n[°º]\.?|nro\.?|n[uú]mero)\s*(\d{1,3})\b/i);
-    if (numKW) { numero = numKW[1]; work = work.replace(numKW[0], " ").trim(); }
+    // Detect "conjunto" or "short" keywords for kit composition
+    let wantsShort = /\b(conjunto|short|c\/?\s*short|combo)\b/i.test(work);
+    let camiseta = 1, short = wantsShort ? 1 : 0;
+    work = work.replace(/\b(conjunto|c\/?\s*short|combo)\b/gi, " ").trim();
+    // Strip stray jersey-number keywords (we no longer store numero)
+    work = work.replace(/(?:#|n[°º]\.?|nro\.?|n[uú]mero)\s*\d{1,3}\b/gi, " ");
+    // Talle detection
     let talle = "";
     const talleKW = work.match(/\b(?:talle|tal\.|t\.|t:)\s*(XXXL|XXL|XL|XXS|XS|S|M|L)\b/i);
     if (talleKW) { talle = talleKW[1].toUpperCase(); work = work.replace(talleKW[0], " ").trim(); }
@@ -145,20 +171,15 @@ function parseWhatsAppRoster(text) {
       const matches = [...work.matchAll(/\b(XXXL|XXL|XL|XXS|XS|L|M|S)\b/g)];
       if (matches.length) { const lm = matches[matches.length - 1]; talle = lm[0].toUpperCase(); work = (work.slice(0, lm.index) + " " + work.slice(lm.index + lm[0].length)).replace(/\s+/g, " ").trim(); }
     }
-    let cantidad = 1;
+    // Quantity prefix like x2 or (2)
     const cantMatch = work.match(/(?:^|\s)[x×](\d+)|\((\d+)\)/i);
-    if (cantMatch) { cantidad = parseInt(cantMatch[1] || cantMatch[2]); work = work.replace(cantMatch[0], " ").trim(); }
-    if (!numero) {
-      const tn = work.match(/\s(\d{1,3})\s*$/);
-      if (tn) { numero = tn[1]; work = work.replace(/\s+\d{1,3}\s*$/, "").trim(); }
-      else if (/^\d{1,3}$/.test(work)) { cantidad = parseInt(work); work = ""; }
-    }
-    const extras = ROSTER_KEYWORDS.filter(k => { if (k.re.test(work)) { work = work.replace(k.re, " ").trim(); return true; } return false; }).map(k => k.label);
+    if (cantMatch) { camiseta = parseInt(cantMatch[1] || cantMatch[2]) || 1; work = work.replace(cantMatch[0], " ").trim(); }
+    // Strip trailing lone numbers (jersey numbers); strip strict known keywords
+    work = work.replace(/\s+\d{1,3}\s*$/, "").trim();
+    ROSTER_KEYWORDS.forEach(k => { work = work.replace(k.re, " "); });
     const nombre = work.replace(/[:.]+/g, " ").replace(/\s+/g, " ").trim();
-    if (!nombre && !talle && !numero) return rows;
-    let adicionales = numero ? `Nº\u00A0${numero}` : "";
-    if (extras.length) adicionales = (adicionales ? adicionales + " · " : "") + extras.join(" · ");
-    return [...rows, newRow({ nombre, cantidad, talle, adicionales })];
+    if (!nombre && !talle) return rows;
+    return [...rows, newRow({ nombre, camiseta, short, talle })];
   }, []);
 }
 
@@ -176,21 +197,22 @@ const seedEmpresas = [
   { id: "EMP-003", nombre: "Wanderers Rugby",          color: "#c5a663", createdAt: "2026-02-15", notas: "Equipo de rugby, bordados con escudo del club." }
 ];
 const seedOrders = [
-  { id: "PED-2026-042", clienteId: "CLI-001", cliente: "Club Atlético San Martín", delegado: "Juan Pérez", whatsapp: "5491123456789", productos: [{ tipo: "Camiseta titular", cantidad: 18 }, { tipo: "Short titular", cantidad: 18 }], total: 360000, costo: 198000, sena: 180000, saldo: 180000, estado: "produccion", fechaPedido: daysFromNow(-12), fechaEntrega: daysFromNow(4), diseno: "EP-DSG-042", observaciones: "Apurar — debutan en torneo el 20.", colores: ["#c5ff3b", "#000000"], roster: [{ id: "R-s1", nombre: "Juan Pérez", talle: "L", cantidad: 1, adicionales: "Nº 10 · capitán", total: 20000 }, { id: "R-s2", nombre: "Carlos Sosa", talle: "XL", cantidad: 1, adicionales: "Nº 4", total: 20000 }, { id: "R-s3", nombre: "Diego Maradona", talle: "L", cantidad: 1, adicionales: "Nº 10", total: 20000 }, { id: "R-s4", nombre: "Lionel Messi", talle: "S", cantidad: 1, adicionales: "Nº 10", total: 20000 }, { id: "R-s5", nombre: "Rodrigo Bentancur", talle: "M", cantidad: 1, adicionales: "Nº 14", total: 20000 }] },
-  { id: "PED-2026-041", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Conjunto suplente", cantidad: 22 }], total: 528000, costo: 290400, sena: 264000, saldo: 264000, estado: "aprobacion", fechaPedido: daysFromNow(-7), fechaEntrega: daysFromNow(14), diseno: "EP-DSG-041", observaciones: "Cliente pidió ver mockup con número 10.", colores: ["#ffffff", "#0a4d9c"] },
-  { id: "PED-2026-040", clienteId: "CLI-005", cliente: "Wanderers Rugby", delegado: "Diego Maldonado", whatsapp: "5491189123456", productos: [{ tipo: "Buzo polar bordado", cantidad: 30 }], total: 720000, costo: 432000, sena: 360000, saldo: 360000, estado: "produccion", fechaPedido: daysFromNow(-18), fechaEntrega: daysFromNow(1), diseno: "EP-DSG-040", observaciones: "Bordado con escudo del club.", colores: ["#2c1810", "#c5a663"] },
-  { id: "PED-2026-039", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Camiseta sublimada", cantidad: 14 }], total: 280000, costo: 154000, sena: 140000, saldo: 0, estado: "aprobacion", fechaPedido: daysFromNow(-20), fechaEntrega: daysFromNow(-1), diseno: "EP-DSG-039", observaciones: "Pagado completo en la seña.", colores: ["#ff5a6e", "#000000"] },
-  { id: "PED-2026-038", clienteId: "CLI-001", cliente: "Club Atlético San Martín", delegado: "Juan Pérez", whatsapp: "5491123456789", productos: [{ tipo: "Camiseta + short reversible", cantidad: 12 }], total: 360000, costo: 198000, sena: 180000, saldo: 180000, estado: "diseno", fechaPedido: daysFromNow(-3), fechaEntrega: daysFromNow(21), diseno: "EP-DSG-043", observaciones: "Diseño en proceso. Mandaron referencias por WP.", colores: ["#000000", "#c5ff3b"] },
-  { id: "PED-2026-037", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Camiseta arquero", cantidad: 3 }], total: 75000, costo: 41250, sena: 75000, saldo: 0, estado: "entrega", fechaPedido: daysFromNow(-35), fechaEntrega: daysFromNow(-20), diseno: "EP-DSG-037", observaciones: "Entregado en local. Cliente conforme.", colores: ["#ffaa00", "#000000"] }
+  { id: "PED-2026-042", clienteId: "CLI-001", cliente: "Club Atlético San Martín", delegado: "Juan Pérez", whatsapp: "5491123456789", productos: [{ tipo: "Camiseta titular", cantidad: 18 }, { tipo: "Short titular", cantidad: 18 }], estado: "produccion", fechaPedido: daysFromNow(-12), fechaEntrega: daysFromNow(4), diseno: "EP-DSG-042", observaciones: "Apurar — debutan en torneo el 20.", colores: ["#c5ff3b", "#000000"], roster: [{ id: "R-s1", nombre: "Juan Pérez", camiseta: 1, short: 0, talle: "L" }, { id: "R-s2", nombre: "Carlos Sosa", camiseta: 1, short: 0, talle: "XL" }, { id: "R-s3", nombre: "Diego Maradona", camiseta: 1, short: 0, talle: "L" }, { id: "R-s4", nombre: "Lionel Messi", camiseta: 1, short: 0, talle: "S" }, { id: "R-s5", nombre: "Rodrigo Bentancur", camiseta: 1, short: 0, talle: "M" }] },
+  { id: "PED-2026-041", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Conjunto suplente", cantidad: 22 }], estado: "aprobacion", fechaPedido: daysFromNow(-7), fechaEntrega: daysFromNow(14), diseno: "EP-DSG-041", observaciones: "Cliente pidió ver mockup con número 10.", colores: ["#ffffff", "#0a4d9c"] },
+  { id: "PED-2026-040", clienteId: "CLI-005", cliente: "Wanderers Rugby", delegado: "Diego Maldonado", whatsapp: "5491189123456", productos: [{ tipo: "Buzo polar bordado", cantidad: 30 }], estado: "produccion", fechaPedido: daysFromNow(-18), fechaEntrega: daysFromNow(1), diseno: "EP-DSG-040", observaciones: "Bordado con escudo del club.", colores: ["#2c1810", "#c5a663"] },
+  { id: "PED-2026-039", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Camiseta sublimada", cantidad: 14 }], estado: "aprobacion", fechaPedido: daysFromNow(-20), fechaEntrega: daysFromNow(-1), diseno: "EP-DSG-039", observaciones: "Pagado completo en la seña.", colores: ["#ff5a6e", "#000000"] },
+  { id: "PED-2026-038", clienteId: "CLI-001", cliente: "Club Atlético San Martín", delegado: "Juan Pérez", whatsapp: "5491123456789", productos: [{ tipo: "Camiseta + short reversible", cantidad: 12 }], estado: "diseno", fechaPedido: daysFromNow(-3), fechaEntrega: daysFromNow(21), diseno: "EP-DSG-043", observaciones: "Diseño en proceso. Mandaron referencias por WP.", colores: ["#000000", "#c5ff3b"] },
+  { id: "PED-2026-037", clienteId: "CLI-003", cliente: "Real Berazategui FC", delegado: "Rodrigo Sánchez", whatsapp: "5491167891234", productos: [{ tipo: "Camiseta arquero", cantidad: 3 }], estado: "entrega", fechaPedido: daysFromNow(-35), fechaEntrega: daysFromNow(-20), diseno: "EP-DSG-037", observaciones: "Entregado en local. Cliente conforme.", colores: ["#ffaa00", "#000000"] }
 ];
 const seedDesigns = [];
 const estadoConfig = {
   diseno:     { label: "Diseño",     color: C.accent,  bg: C.accentSoft, order: 0 },
-  produccion: { label: "Producción", color: C.warn,    bg: "rgba(245,158,11,0.08)", order: 1 },
-  aprobacion: { label: "Aprobación", color: "#a855f7", bg: "rgba(168,85,247,0.08)", order: 2 },
-  entrega:    { label: "Entrega",    color: C.ok,      bg: "rgba(34,197,94,0.08)", order: 3 }
+  aprobacion: { label: "Aprobación", color: "#a855f7", bg: "rgba(168,85,247,0.08)", order: 1 },
+  produccion: { label: "Producción", color: C.warn,    bg: "rgba(245,158,11,0.08)", order: 2 },
+  entrega:    { label: "Entrega",    color: C.ok,      bg: "rgba(34,197,94,0.08)", order: 3 },
+  archivado:  { label: "Archivado",  color: C.textMute, bg: "rgba(100,100,110,0.08)", order: 4 }
 };
-const estadoFlow = ["diseno", "produccion", "aprobacion", "entrega"];
+const estadoFlow = ["diseno", "aprobacion", "produccion", "entrega"]; // archivado is terminal, set manually
 
 // ── Storage / sync layer ─────────────────────────────────────────
 // Module-level mode detection so all hooks share the same understanding.
@@ -212,7 +234,6 @@ const useStorageMode = () => {
   return m;
 };
 
-// Usuario autenticado actual: { role, username } | null
 let currentUser = null;
 const userListeners = new Set();
 const setCurrentUser = (u) => {
@@ -244,6 +265,182 @@ const probeApiOnce = (() => {
     }
   };
 })();
+
+// ── v10: one-time data migration v9 → v10 ────────────────────────
+// Copies localStorage entries from v9 keys to v10 keys if v10 doesn't exist yet.
+// Idempotent — once migrated, the marker prevents re-runs. Runs synchronously at
+// module load so any subsequent usePersistedState read gets the migrated value.
+const V10_MIGRATION_MARKER = "lpsport:migrated-to-v10";
+const V11_FEATURES_MARKER = "lpsport:v11-features-init";
+(function migrateV9ToV10() {
+  try {
+    if (typeof localStorage === "undefined") return;
+    if (localStorage.getItem(V10_MIGRATION_MARKER)) return;
+    const pairs = [
+      ["lpsport:orders:v9", "lpsport:orders:v10"],
+      ["lpsport:customers:v9", "lpsport:customers:v10"],
+      ["lpsport:designs:v9", "lpsport:designs:v10"],
+      ["lpsport:empresas:v9", "lpsport:empresas:v10"],
+    ];
+    let copied = 0;
+    for (const [v9k, v10k] of pairs) {
+      if (localStorage.getItem(v10k)) continue; // v10 already has data
+      const v9val = localStorage.getItem(v9k);
+      if (v9val) { localStorage.setItem(v10k, v9val); copied++; }
+    }
+    localStorage.setItem(V10_MIGRATION_MARKER, new Date().toISOString());
+    if (copied) console.log(`[lp-sport] Migrated ${copied} keys from v9 → v10`);
+  } catch {}
+})();
+
+// ── v10: image compression helper ─────────────────────────────────
+// Phone photos can be 5MB+ which bloats localStorage and the server JSON store.
+// We downsample images on upload: max 2000px on long side, JPEG quality 0.85,
+// strip metadata. Returns a new File-shaped object with the compressed dataUrl.
+// Pass-through for non-images and tiny images.
+const compressImage = async (fileLike) => {
+  if (!fileLike?.type?.startsWith("image/") || !fileLike?.dataUrl) return fileLike;
+  // Skip PNG/SVG transparency-sensitive formats > don't reencode as JPEG
+  // Also skip already-small images
+  if (fileLike.size && fileLike.size < 300_000) return fileLike;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const MAX = 2000;
+        const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+        const W = Math.round(img.width * scale);
+        const H = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext("2d");
+        // Fill with white so transparent PNGs don't go to black when reencoded as JPEG
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+        ctx.drawImage(img, 0, 0, W, H);
+        const isPng = fileLike.type === "image/png";
+        // Keep PNG if transparency might matter (small logos); JPEG everything else for size
+        const outType = isPng && fileLike.size < 1_000_000 ? "image/png" : "image/jpeg";
+        const dataUrl = canvas.toDataURL(outType, 0.85);
+        const newSize = Math.round((dataUrl.length - dataUrl.indexOf(",") - 1) * 0.75);
+        // Only return compressed version if it's actually smaller
+        if (newSize < (fileLike.size || Infinity)) {
+          resolve({
+            ...fileLike,
+            type: outType,
+            size: newSize,
+            dataUrl,
+            originalSize: fileLike.size,
+            compressed: true
+          });
+        } else {
+          resolve(fileLike);
+        }
+      } catch { resolve(fileLike); }
+    };
+    img.onerror = () => resolve(fileLike);
+    img.src = fileLike.dataUrl;
+  });
+};
+
+// ── v10: activity log ─────────────────────────────────────────────
+// POST a log entry to the server. Falls through silently in offline/local mode
+// (the log only exists on the server in v10 — local mode has no log to write to).
+const logActivity = async (type, message, extra = {}) => {
+  if (storageMode !== "api") return;
+  try {
+    await fetch("/api/activity", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, message, orderId: extra.orderId || null, meta: extra.meta || null })
+    });
+  } catch {}
+};
+
+// Hook that fetches the latest activity entries. Re-fetches when `refreshKey` changes.
+const useActivityLog = (limit = 50, refreshKey = 0) => {
+  const [entries, setEntries] = useState([]);
+  const mode = useStorageMode();
+  useEffect(() => {
+    if (mode !== "api") { setEntries([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/activity?limit=${limit}`, { credentials: "include" });
+        if (r.ok && !cancelled) {
+          const d = await r.json();
+          setEntries(d.entries || []);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [mode, limit, refreshKey]);
+  return entries;
+};
+
+// ── v10: relative time formatter ─────────────────────────────────
+const fmtRelative = (iso) => {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  const diff = Date.now() - t;
+  if (diff < 0) return "ahora";
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return "hace " + s + "s";
+  const m = Math.floor(s / 60);
+  if (m < 60) return "hace " + m + " min";
+  const h = Math.floor(m / 60);
+  if (h < 24) return "hace " + h + " h";
+  const d = Math.floor(h / 24);
+  if (d < 7) return "hace " + d + " días";
+  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+};
+
+// ── v11: PWA install prompt capture ──────────────────────────────
+// Browsers fire `beforeinstallprompt` ONCE when the PWA becomes installable.
+// We have to call e.preventDefault() to defer, then keep the event around so the
+// user can trigger install via a button later. We also detect if already installed.
+let __pwaInstallEvent = null;
+const __pwaListeners = new Set();
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    __pwaInstallEvent = e;
+    __pwaListeners.forEach(fn => { try { fn(); } catch {} });
+  });
+  window.addEventListener("appinstalled", () => {
+    __pwaInstallEvent = null;
+    __pwaListeners.forEach(fn => { try { fn(); } catch {} });
+  });
+}
+const useInstallPrompt = () => {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const fn = () => force(x => x + 1);
+    __pwaListeners.add(fn);
+    return () => __pwaListeners.delete(fn);
+  }, []);
+  const isStandalone = typeof window !== "undefined" && (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator?.standalone);
+  return {
+    canInstall: !!__pwaInstallEvent && !isStandalone,
+    isInstalled: isStandalone,
+    install: async () => {
+      if (!__pwaInstallEvent) return { outcome: "unavailable" };
+      __pwaInstallEvent.prompt();
+      const choice = await __pwaInstallEvent.userChoice;
+      if (choice.outcome === "accepted") __pwaInstallEvent = null;
+      return choice;
+    }
+  };
+};
+
+// ── v11: register service worker on page load ────────────────────
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
 
 // Replacement for usePersistedState: works both online (API) and offline (localStorage cache).
 function usePersistedState(key, initial) {
@@ -351,7 +548,50 @@ const importBackup = (file, { setOrders, setDesigns, setEmpresas }) => {
   reader.readAsText(file);
 };
 
-// Download a copy of the running HTML, baking the user's current data into the file.
+// Extract a dominant-color palette from an image dataURL.
+// Pure JS: downsample to 100×100 on canvas, bucket pixels into 4-bit-per-channel bins,
+// pick top distinct colors. Returns hex array (up to `count`). Resolves [] on any failure.
+const extractPalette = (dataUrl, count = 4) => new Promise((resolve) => {
+  if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image")) { resolve([]); return; }
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    try {
+      const maxSize = 100;
+      const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      const W = Math.max(1, Math.floor(img.width * scale));
+      const H = Math.max(1, Math.floor(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, W, H);
+      const pixels = ctx.getImageData(0, 0, W, H).data;
+      const buckets = new Map();
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 3] < 200) continue;
+        const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+        const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+        const cur = buckets.get(key);
+        if (cur) { cur[0] += r; cur[1] += g; cur[2] += b; cur[3]++; }
+        else buckets.set(key, [r, g, b, 1]);
+      }
+      const sorted = [...buckets.values()].sort((a, b) => b[3] - a[3]);
+      const result = [];
+      const isSimilar = (r, g, b) => result.some(([R, G, B]) => Math.abs(R - r) + Math.abs(G - g) + Math.abs(B - b) < 70);
+      for (const [r, g, b, n] of sorted) {
+        const avgR = Math.round(r / n), avgG = Math.round(g / n), avgB = Math.round(b / n);
+        if (isSimilar(avgR, avgG, avgB)) continue;
+        result.push([avgR, avgG, avgB]);
+        if (result.length >= count) break;
+      }
+      resolve(result.map(([r, g, b]) => "#" + [r, g, b].map(n => n.toString(16).padStart(2, "0")).join("")));
+    } catch { resolve([]); }
+  };
+  img.onerror = () => resolve([]);
+  img.src = dataUrl;
+});
+
+
 // Result: a single .html that opens offline and already contains their pedidos/empresas/diseños.
 const downloadSelf = () => {
   try {
@@ -539,24 +779,33 @@ const StatChip = ({ label, value, color = C.text, icon: Icon, accent = false }) 
   </div>
 );
 
-// Divider
-// ── LP brand logo (custom SVG wordmark) ──────────────────────────
-// ── LP 3D Logo: real extrusion via stacked Z layers + mouse tracking ──
-// The front layer is pure white; back layers progressively darker to simulate the
-// SIDE of an extruded letter. When rotated by mouse, the side faces become visible.
-// LP glyph: italic-leaning forms with rounded terminals (replaces the previous geometric rects).
-// All corners use cubic Bezier curves for soft transitions. The italic slant is applied in the parent transform.
+// ── LP brand logo (SVG path recreation of reference) ─────────
+// v9.4 fresh redesign. Thin stems, dominant right-pointing bowl, dramatic dagger spike on
+// the L foot, triangular cut inside the P top piece. Built for 7-layer Z-stack extrusion.
+// All cuts straight — no curves. ViewBox 0 0 100 100.
 const LP_GLYPH_PATHS = {
-  // L: stem + foot, all 6 outer corners rounded
-  L: "M 27 22 L 30 22 C 33 22 35 24 35 27 L 35 57 L 59 57 C 62 57 64 59 64 62 L 64 65 C 64 68 62 70 59 70 L 27 70 C 24 70 22 68 22 65 L 22 27 C 22 24 24 22 27 22 Z",
-  // P: stem + fuller circular bowl, evenodd cuts inner counter
-  P: "M 52 22 L 60 22 C 78 22 84 28 84 36 C 84 44 78 50 60 50 L 60 65 C 60 68 58 70 55 70 L 52 70 C 49 70 47 68 47 65 L 47 27 C 47 24 49 22 52 22 Z M 60 30 L 68 30 C 73 30 75 33 75 36 C 75 39 73 42 68 42 L 60 42 Z"
+  // L: vertical stem (5 wide) + horizontal foot with sharp dagger spike at right end
+  // pointing down-right. Single continuous polygon.
+  L: "M 2 2 L 7 2 L 7 80 L 30 80 L 55 98 L 2 98 Z",
+
+  // P main: stem + top piece combined. Top edge extends from x=22 to x=95, then slants
+  // down-left to (78, 26) — bottom-right corner of top piece — then back to stem.
+  P_main: "M 22 2 L 95 2 L 78 26 L 28 26 L 28 98 L 22 98 Z",
+
+  // P inner cut: triangular hole inside the top piece, apex pointing down.
+  // Combined with P_main via fillRule="evenodd" to subtract.
+  P_top_cut: "M 40 8 L 76 8 L 60 24 Z",
+
+  // P bowl: large right-pointing triangle attached to right side of stem.
+  // Apex sticks out far right at mid-height — the dominant visual element.
+  P_bowl: "M 28 30 L 98 54 L 28 76 Z",
 };
 
 const LPGlyph = ({ fill }) => (
-  <g transform="skewX(-10) translate(6 0)" fill={fill}>
+  <g fill={fill}>
     <path d={LP_GLYPH_PATHS.L} />
-    <path d={LP_GLYPH_PATHS.P} fillRule="evenodd" />
+    <path d={`${LP_GLYPH_PATHS.P_main} ${LP_GLYPH_PATHS.P_top_cut}`} fillRule="evenodd" />
+    <path d={LP_GLYPH_PATHS.P_bowl} />
   </g>
 );
 
@@ -570,10 +819,9 @@ const LP3DLogo = ({ size = 44 }) => {
     const rect = wrapRef.current.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width;
     const py = (e.clientY - rect.top) / rect.height;
-    const rx = (py - 0.5) * -32;   // up to ±16°
-    const ry = (px - 0.5) * 36;    // up to ±18°
+    const rx = (py - 0.5) * -32;
+    const ry = (px - 0.5) * 36;
     innerRef.current.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
-    // Move the soft floor shadow opposite to the tilt for parallax
     const shadow = wrapRef.current.querySelector("[data-logo-shadow]");
     if (shadow) {
       shadow.style.transform = `translate(${(px - 0.5) * -6}px, ${(py - 0.5) * -3 + 4}px) scaleX(${1 - Math.abs(ry) * 0.005})`;
@@ -600,14 +848,13 @@ const LP3DLogo = ({ size = 44 }) => {
       if (!innerRef.current) return;
       innerRef.current.style.transition = "none";
       innerRef.current.style.transform = "rotateX(0deg) rotateY(0deg)";
-      // Force reflow then restore transition
       void innerRef.current.offsetHeight;
       innerRef.current.style.transition = "transform 280ms cubic-bezier(.2,.8,.2,1)";
       setSpinning(false);
     }, 720);
   };
 
-  // 7 layers from back (darkest) to front (pure white)
+  // 7 Z-stacked layers for real 3D extrusion (back darkest → front pure white)
   const layers = 7;
   return (
     <div
@@ -624,7 +871,6 @@ const LP3DLogo = ({ size = 44 }) => {
         position: "relative"
       }}
     >
-      {/* Soft floor shadow under the logo — provides ambient grounding */}
       <div data-logo-shadow style={{
         position: "absolute",
         left: "10%",
@@ -653,14 +899,12 @@ const LP3DLogo = ({ size = 44 }) => {
       >
         {Array.from({ length: layers }, (_, i) => {
           const isFront = i === layers - 1;
-          // Position back→front: back is most negative Z, front is 0
           const depth = (i - (layers - 1)) * 1.8;
-          // Color: back layers darker, front pure white
           let fill;
           if (isFront) {
             fill = "#ffffff";
           } else {
-            const t = i / (layers - 1);   // 0 (back) → ~1 (front)
+            const t = i / (layers - 1);
             const gray = Math.round(35 + t * 200);
             fill = `rgb(${gray},${gray},${gray + 5})`;
           }
@@ -682,7 +926,6 @@ const LP3DLogo = ({ size = 44 }) => {
             </svg>
           );
         })}
-        {/* Specular highlight on top of front face — premium gloss */}
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{
           position: "absolute", inset: 0, width: "100%", height: "100%",
           transform: `translateZ(${(layers - 0.5) * 1.8}px)`,
@@ -702,7 +945,6 @@ const LP3DLogo = ({ size = 44 }) => {
   );
 };
 
-// Back-compat alias (in case the brand mark is still referenced as LPLogo somewhere)
 const LPLogo = LP3DLogo;
 
 const Divider = ({ className = "" }) => <div className={"h-px " + className} style={{ background: C.border }} />;
@@ -760,30 +1002,39 @@ const ArchivoUpload = ({ archivo, onChange }) => {
 
 // ── Sidebar ──────────────────────────────────────────────────────
 const NAV_BASE = [
+  { key: "inicio",   label: "Inicio",   icon: Home },
   { key: "pedidos",  label: "Pedidos",  icon: Package },
   { key: "planillas",  label: "Planillas",  icon: ClipboardList },
   { key: "diseno",   label: "LP design", icon: Palette },
   { key: "entregas", label: "Entregas", icon: Truck }
 ];
 
-const Sidebar = ({ page, setPage, orders, empresas }) => {
+const Sidebar = ({ page, setPage, orders, empresas, mobileOpen = false, onCloseMobile }) => {
   const lateCount = orders.filter(o => o.estado !== "entrega" && daysDiff(o.fechaEntrega) < 0).length;
+  const activeCount = orders.filter(o => o.estado !== "entrega").length;
   const sidebarUser = useCurrentUser();
-  const sidebarMode = useStorageMode();
-  const nav = [
+  const NAV = [
     ...NAV_BASE,
     ...(sidebarUser?.role === "admin" ? [{ key: "usuarios", label: "Usuarios", icon: Users }] : [])
   ];
 
   return (
-    <aside className="w-[220px] shrink-0 flex flex-col h-screen sticky top-0" style={{ background: C.surface, borderRight: `1px solid ${C.border}` }}>
+    <>
+      {/* v11: mobile overlay backdrop */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }} onClick={onCloseMobile} />
+      )}
+      <aside
+        className={`w-[220px] shrink-0 flex flex-col h-screen md:sticky md:top-0 md:translate-x-0 md:relative fixed top-0 left-0 z-50 transition-transform duration-200 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+        style={{ background: C.surface, borderRight: `1px solid ${C.border}` }}
+      >
       {/* Logo */}
       <div className="px-5 pt-6 pb-5">
         <div className="flex items-center gap-3">
           <LP3DLogo size={44} />
           <div>
-            <div className="text-[15px] leading-none tracking-[0.06em]" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700 }}>LP SPORT</div>
-            <div className="text-[9px] tracking-[0.18em] mt-1.5 lowercase" style={{ color: C.textDim, fontFamily: "'Barlow', sans-serif", fontWeight: 400, letterSpacing: "0.14em" }}>futbol design</div>
+            <div className="text-[15px] leading-none tracking-[0.06em]" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif", fontWeight: 700 }}>LP SPORT</div>
+            <div className="text-[9px] tracking-[0.18em] mt-1.5 lowercase" style={{ color: C.textDim, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif", fontWeight: 400, letterSpacing: "0.14em" }}>futbol design</div>
           </div>
         </div>
       </div>
@@ -793,11 +1044,11 @@ const Sidebar = ({ page, setPage, orders, empresas }) => {
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         <SectionLabel className="px-3 mb-3">Módulos</SectionLabel>
-        {nav.map(({ key, label, icon: Icon }) => {
+        {NAV.map(({ key, label, icon: Icon }) => {
           const active = page === key;
           const badge = (key === "pedidos" || key === "entregas") && lateCount > 0 ? lateCount : null;
           return (
-            <button key={key} onClick={() => setPage(key)}
+            <button key={key} onClick={() => { setPage(key); onCloseMobile?.(); }}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] transition-all duration-100 relative"
               style={{ background: active ? C.accentSoft : "transparent", color: active ? C.accent : C.textDim, fontWeight: active ? 700 : 500, border: active ? `1px solid ${C.accent}22` : "1px solid transparent" }}
               onMouseEnter={e => { if (!active) { e.currentTarget.style.background = C.surface2; e.currentTarget.style.color = C.text; } }}
@@ -814,40 +1065,137 @@ const Sidebar = ({ page, setPage, orders, empresas }) => {
 
       <Divider />
 
-      {/* Persistent download-as-desktop-app trigger */}
-      <button
-        onClick={downloadSelf}
-        className="mx-3 my-3 px-3 py-2.5 rounded-xl flex items-center gap-2.5 transition-all"
-        style={{ background: C.surface2, color: C.textDim, boxShadow: ELEV.highlight }}
-        onMouseEnter={e => { e.currentTarget.style.color = C.accent; e.currentTarget.style.background = C.accentSoft; }}
-        onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.background = C.surface2; }}
-        title="Descargar la app a tu escritorio (.html)"
-      >
-        <Download size={13} strokeWidth={2.2} />
-        <div className="flex-1 text-left min-w-0">
-          <div className="text-[11.5px] font-semibold leading-tight">Descargar app</div>
-          <div className="text-[9.5px] mt-0.5" style={{ color: C.textMute }}>Para abrir desde escritorio</div>
-        </div>
-      </button>
+      {/* Persistent download-as-desktop-app trigger — v9 polished */}
+      <DownloadAppButton />
 
       <div className="px-4 py-4 flex items-center gap-2.5" style={{ borderTop: `1px solid ${C.border}` }}>
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
           style={{ background: C.gradient, color: "#fff" }}>
-          {sidebarMode === "api" && sidebarUser ? (sidebarUser.username[0] || "U").toUpperCase() : "D"}
+          {(sidebarUser?.username || "D")[0].toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[12px] font-semibold truncate" style={{ color: C.text }}>
-            {sidebarMode === "api" && sidebarUser ? sidebarUser.username : "Diseñador"}
-          </div>
-          <div className="text-[10px] truncate" style={{ color: C.textMute }}>
-            {sidebarMode === "api" && sidebarUser
-              ? (sidebarUser.role === "admin" ? "Admin · LP Sport" : "Empleado · LP Sport")
-              : "LP Sport · Berazategui"}
-          </div>
+          <div className="text-[12px] font-semibold truncate" style={{ color: C.text }}>{sidebarUser?.username || "Diseñador"}</div>
+          <div className="text-[10px] truncate" style={{ color: C.textMute }}>{sidebarUser?.role === "admin" ? "Admin · LP Sport" : "LP Sport · Berazategui"}</div>
         </div>
         <SidebarFooterAction />
       </div>
     </aside>
+    </>
+  );
+};
+
+// ── DownloadAppButton: prominent, animated, persistent state ───────
+// Shows three visual states: idle (gradient CTA), downloading (spinner inside icon), done (checkmark + "Ya descargado").
+// After a successful download we track it in localStorage so subsequent loads remember and show the success state until the user clicks again.
+const DOWNLOAD_KEY = "lpsport:app-downloaded-at";
+const DownloadAppButton = () => {
+  const { canInstall, isInstalled, install } = useInstallPrompt();
+  const [phase, setPhase] = useState(() => {
+    try { return localStorage.getItem(DOWNLOAD_KEY) ? "done" : "idle"; } catch { return "idle"; }
+  });
+  const [lastDownloadDate, setLastDownloadDate] = useState(() => {
+    try { return localStorage.getItem(DOWNLOAD_KEY); } catch { return null; }
+  });
+
+  // v11: if the PWA install prompt is available, button installs natively (desktop
+  // shortcut + mobile app icon). Otherwise falls back to HTML download.
+  // If already installed (running standalone), shows "App instalada" disabled.
+  const mode = isInstalled ? "installed" : canInstall ? "install" : "download";
+
+  const handle = async () => {
+    if (phase === "downloading") return;
+    if (mode === "install") {
+      try {
+        await install();
+      } catch {}
+      return;
+    }
+    if (mode === "installed") return;
+    setPhase("downloading");
+    await new Promise(r => setTimeout(r, 350));
+    try {
+      downloadSelf();
+      const now = new Date().toISOString();
+      try { localStorage.setItem(DOWNLOAD_KEY, now); } catch {}
+      setLastDownloadDate(now);
+      setPhase("done");
+    } catch {
+      setPhase("idle");
+    }
+  };
+  const dateStr = lastDownloadDate ? new Date(lastDownloadDate).toLocaleDateString("es-AR", { day: "2-digit", month: "short" }) : null;
+
+  const isIdle = phase === "idle", isDoing = phase === "downloading", isDone = phase === "done";
+  const isInstall = mode === "install";
+  const isInstalledMode = mode === "installed";
+
+  // Color theme by mode
+  const themeColor = isInstall ? C.accent : isInstalledMode ? C.ok : isDone ? C.ok : C.accent;
+  const bg = isInstall
+    ? `linear-gradient(135deg, ${C.accent}33 0%, ${C.accent}14 100%)`
+    : isInstalledMode
+      ? `linear-gradient(135deg, ${C.ok}26 0%, ${C.ok}12 100%)`
+      : isDone
+        ? `linear-gradient(135deg, ${C.ok}26 0%, ${C.ok}12 100%)`
+        : isDoing
+          ? `linear-gradient(135deg, ${C.accent}40 0%, ${C.accent}18 100%)`
+          : `linear-gradient(135deg, ${C.accent}22 0%, ${C.accent}0d 100%)`;
+
+  const title = isInstall ? "Instalar app" : isInstalledMode ? "App instalada" : isDoing ? "Descargando…" : isDone ? "Ya descargado" : "Descargar app";
+  const subtitle = isInstall
+    ? "Acceso directo en escritorio"
+    : isInstalledMode
+      ? "Corriendo en modo app"
+      : isDoing
+        ? "Empaquetando archivo"
+        : isDone
+          ? `${dateStr} · re-bajar`
+          : "Funciona offline · 160 KB";
+
+  const TitleIcon = isInstall ? Download : isInstalledMode ? CheckCircle2 : isDoing ? null : isDone ? CheckCircle2 : Download;
+
+  return (
+    <button
+      onClick={handle}
+      disabled={isDoing || isInstalledMode}
+      className="mx-3 my-3 px-3 py-3 rounded-xl flex items-center gap-3 transition-all relative overflow-hidden group"
+      style={{
+        background: bg,
+        boxShadow: `inset 0 0 0 1px ${themeColor}33, ${ELEV.highlight}`,
+        cursor: isDoing ? "wait" : isInstalledMode ? "default" : "pointer"
+      }}
+      onMouseEnter={e => { if (!isDoing && !isInstalledMode) e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${themeColor}66, 0 6px 24px ${themeColor}1a`; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${themeColor}33, ${ELEV.highlight}`; }}
+      title={isInstall ? "Instalar como app nativa con ícono en el escritorio" : isInstalledMode ? "Ya está instalada" : "Descargar versión offline (HTML)"}
+    >
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 relative" style={{
+        background: `${themeColor}22`,
+        boxShadow: `inset 0 0 0 1px ${themeColor}44`
+      }}>
+        {isDoing ? (
+          <div className="w-4 h-4 rounded-full" style={{
+            border: `2px solid ${C.accent}33`,
+            borderTopColor: C.accent,
+            animation: "lp-spin 0.8s linear infinite"
+          }} />
+        ) : TitleIcon ? (
+          <TitleIcon size={15} strokeWidth={2.4} style={{ color: themeColor, transition: "transform 240ms cubic-bezier(.2,.8,.2,1)" }} className={isInstall || (!isInstalledMode && !isDone) ? "group-hover:translate-y-0.5" : ""} />
+        ) : null}
+      </div>
+
+      <div className="flex-1 text-left min-w-0">
+        <div className="text-[12px] font-bold leading-tight" style={{ color: themeColor === C.accent ? C.text : themeColor, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>
+          {title}
+        </div>
+        <div className="text-[9.5px] mt-0.5 leading-tight" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>
+          {subtitle}
+        </div>
+      </div>
+
+      {!isDoing && !isInstalledMode && (
+        <ChevronRight size={13} className="shrink-0 opacity-30 group-hover:opacity-100 transition-opacity" style={{ color: themeColor }} />
+      )}
+    </button>
   );
 };
 
@@ -870,8 +1218,8 @@ const SidebarFooterAction = () => {
 };
 
 // ── Topbar ───────────────────────────────────────────────────────
-const Topbar = ({ title, action, searchValue, onSearchChange, searchRef, searchPlaceholder }) => (
-  <div className="sticky top-0 z-20 px-8 py-5 flex items-center justify-between gap-4"
+const Topbar = ({ title, action, searchValue, onSearchChange, searchRef, searchPlaceholder, onMenuClick }) => (
+  <div className="sticky top-0 z-20 px-4 md:px-8 py-4 md:py-5 flex items-center justify-between gap-3 md:gap-4"
     style={{
       background: "rgba(8,8,8,0.72)",
       backdropFilter: "blur(20px) saturate(140%)",
@@ -880,8 +1228,12 @@ const Topbar = ({ title, action, searchValue, onSearchChange, searchRef, searchP
       boxShadow: "0 1px 0 0 rgba(255,255,255,0.02) inset"
     }}
   >
-    <div className="min-w-0">
-      <h1 className="text-[22px] leading-none truncate" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.04em", fontWeight: 700 }}>{title}</h1>
+    <div className="flex items-center gap-2 min-w-0">
+      {/* v11: hamburger only on mobile */}
+      <button onClick={onMenuClick} className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg shrink-0" style={{ background: C.surface, border: `1px solid ${C.border}` }} aria-label="Abrir menú">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <h1 className="text-[18px] md:text-[22px] leading-none truncate" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif", letterSpacing: "0.04em", fontWeight: 700 }}>{title}</h1>
     </div>
     <div className="flex items-center gap-2.5 shrink-0">
       <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl w-72" style={{ background: C.surface, border: `1px solid ${C.border}`, boxShadow: "0 1px 0 0 rgba(255,255,255,0.03) inset" }}>
@@ -979,7 +1331,7 @@ const ToastContainer = () => {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: c + "22", color: c }}>
               <IconC size={14} strokeWidth={2.4} />
             </div>
-            <div className="text-[12.5px] font-medium flex-1" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>{t.message}</div>
+            <div className="text-[12.5px] font-medium flex-1" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>{t.message}</div>
           </div>
         );
       })}
@@ -1006,7 +1358,7 @@ const Modal = ({ title, onClose, children, width = "520px" }) => {
       }}>
         {/* Sticky header — always visible, contains close button */}
         <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
-          <h2 className="text-[15px] font-bold truncate pr-2" style={{ color: C.text, fontFamily: "'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{title}</h2>
+          <h2 className="text-[15px] font-bold truncate pr-2" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{title}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:bg-white/5 shrink-0"><X size={16} style={{ color: C.textDim }} /></button>
         </div>
         {/* Scrollable body */}
@@ -1039,25 +1391,17 @@ const Drawer = ({ onClose, children }) => {
 
 // ── LoginScreen: shown when backend reports 401 ──────────────────
 const LoginScreen = ({ onLoggedIn }) => {
-  const [roleSelected, setRoleSelected] = useState(null); // "admin" | "empleado"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const inputRef = useRef(null);
+  const usernameRef = useRef(null);
 
-  useEffect(() => { if (roleSelected) setTimeout(() => inputRef.current?.focus(), 50); }, [roleSelected]);
-
-  const selectRole = (r) => {
-    setRoleSelected(r);
-    setUsername(r === "admin" ? "admin" : "");
-    setPassword("");
-    setError("");
-  };
+  useEffect(() => { usernameRef.current?.focus(); }, []);
 
   const submit = async (e) => {
     e?.preventDefault();
-    if (submitting || !roleSelected) return;
+    if (submitting) return;
     setSubmitting(true); setError("");
     try {
       const r = await fetch("/api/login", {
@@ -1067,21 +1411,27 @@ const LoginScreen = ({ onLoggedIn }) => {
         body: JSON.stringify({ username: username.trim(), password })
       });
       if (r.ok) {
-        const d = await r.json();
+        const d = await r.json().catch(() => ({}));
         setCurrentUser({ role: d.role, username: d.username });
         onLoggedIn?.();
       } else {
         const d = await r.json().catch(() => ({}));
         setError(d.error || "Usuario o contraseña incorrectos");
       }
-    } catch {
+    } catch (err) {
       setError("Error de red — verificá la conexión");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const canSubmit = roleSelected && password && (roleSelected === "admin" || username);
+  const inputStyle = (hasError) => ({
+    background: C.surface2,
+    color: C.text,
+    border: `1px solid ${hasError ? C.danger + "55" : C.border}`,
+    fontFamily: "'JetBrains Mono', monospace",
+    ...PREMIUM_FONT
+  });
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{
@@ -1089,10 +1439,10 @@ const LoginScreen = ({ onLoggedIn }) => {
       backgroundImage: `radial-gradient(circle at 30% 20%, rgba(94,169,232,0.10) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(94,169,232,0.06) 0%, transparent 50%)`,
       ...PREMIUM_FONT
     }}>
-      <div className="w-full max-w-sm">
+      <form onSubmit={submit} className="w-full max-w-sm">
         <div className="text-center mb-7">
           <div className="flex justify-center mb-5"><LP3DLogo size={72} /></div>
-          <div className="text-[20px] font-bold tracking-[0.04em]" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>LP SPORT</div>
+          <div className="text-[20px] font-bold tracking-[0.04em]" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif" }}>LP SPORT</div>
           <div className="text-[10.5px] mt-1 tracking-[0.18em] lowercase" style={{ color: C.textDim }}>futbol design</div>
         </div>
 
@@ -1100,247 +1450,42 @@ const LoginScreen = ({ onLoggedIn }) => {
           background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
           boxShadow: ELEV.floating
         }}>
-          {/* Selector de tipo de acceso */}
           <div>
-            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-3" style={{ color: C.textMute }}>Tipo de acceso</div>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { key: "admin",    label: "Admin",    icon: <Shield size={26} /> },
-                { key: "empleado", label: "Empleado", icon: <User   size={26} /> }
-              ].map(({ key, label, icon }) => (
-                <button key={key} type="button" onClick={() => selectRole(key)}
-                  className="flex flex-col items-center gap-2 py-5 rounded-xl transition-all select-none"
-                  style={{
-                    background: roleSelected === key ? `${C.accent}20` : C.surface2,
-                    border: `2px solid ${roleSelected === key ? C.accent : C.border}`,
-                    color: roleSelected === key ? C.accent : C.textDim,
-                    fontWeight: 700,
-                    fontSize: 13,
-                    letterSpacing: "0.06em",
-                    cursor: "pointer",
-                  }}>
-                  {icon}
-                  {label}
-                </button>
-              ))}
-            </div>
+            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Usuario</div>
+            <input
+              ref={usernameRef}
+              type="text"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(""); }}
+              placeholder="Ingresá tu usuario"
+              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
+              style={inputStyle(!!error)}
+              autoComplete="username"
+            />
+          </div>
+          <div>
+            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
+            <input
+              type="password"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError(""); }}
+              placeholder="Ingresá tu clave"
+              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
+              style={inputStyle(!!error)}
+              autoComplete="current-password"
+            />
+            {error && <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: C.danger }}><AlertTriangle size={11} />{error}</div>}
           </div>
 
-          {/* Formulario, aparece al seleccionar rol */}
-          {roleSelected && (
-            <form onSubmit={submit} className="space-y-3">
-              {roleSelected === "empleado" && (
-                <div>
-                  <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Usuario</div>
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={username}
-                    onChange={e => { setUsername(e.target.value); setError(""); }}
-                    placeholder="tu usuario"
-                    className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
-                    style={{
-                      background: C.surface2,
-                      color: C.text,
-                      border: `1px solid ${error ? C.danger + "55" : C.border}`,
-                      fontFamily: "'JetBrains Mono', monospace",
-                      ...PREMIUM_FONT
-                    }}
-                    autoComplete="username"
-                  />
-                </div>
-              )}
-              <div>
-                <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
-                <input
-                  ref={roleSelected === "admin" ? inputRef : undefined}
-                  type="password"
-                  value={password}
-                  onChange={e => { setPassword(e.target.value); setError(""); }}
-                  placeholder="tu contraseña"
-                  className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
-                  style={{
-                    background: C.surface2,
-                    color: C.text,
-                    border: `1px solid ${error ? C.danger + "55" : C.border}`,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    ...PREMIUM_FONT
-                  }}
-                  autoComplete="current-password"
-                />
-                {error && <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: C.danger }}><AlertTriangle size={11} />{error}</div>}
-              </div>
-              <Btn variant="primary" onClick={submit} disabled={submitting || !canSubmit} className="w-full justify-center">
-                {submitting ? "Entrando…" : "Entrar"}
-              </Btn>
-            </form>
-          )}
+          <Btn variant="primary" onClick={submit} disabled={submitting || !username || !password} className="w-full justify-center">
+            {submitting ? "Entrando…" : "Entrar"}
+          </Btn>
         </div>
 
         <div className="text-center mt-5 text-[10.5px]" style={{ color: C.textMute }}>
           Sesión protegida · Tus datos se sincronizan entre tus dispositivos
         </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Usuarios (solo admin, requiere backend PostgreSQL) ───────────
-const UsuariosAdmin = () => {
-  const me = useCurrentUser();
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [form, setForm] = useState({ username: "", password: "", role: "empleado" });
-  const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const r = await fetch("/api/admin/users", { credentials: "include" });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "No se pudo cargar usuarios");
-      setUsers(d.users || []);
-    } catch (e) {
-      setError(e.message || "Error de red");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const createUser = async (e) => {
-    e?.preventDefault();
-    if (!form.username.trim() || !form.password) return;
-    setSaving(true);
-    try {
-      const r = await fetch("/api/admin/users", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: form.username.trim(), password: form.password, role: form.role })
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "No se pudo crear");
-      toast.ok(`Usuario ${form.username} creado`);
-      setForm({ username: "", password: "", role: "empleado" });
-      load();
-    } catch (err) {
-      toast.err(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const patchUser = async (id, body) => {
-    try {
-      const r = await fetch(`/api/admin/users/${id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "Error al actualizar");
-      load();
-      toast.ok("Usuario actualizado");
-    } catch (err) {
-      toast.err(err.message);
-    }
-  };
-
-  const removeUser = async (id, username) => {
-    if (!confirm(`¿Eliminar al usuario "${username}"?`)) return;
-    try {
-      const r = await fetch(`/api/admin/users/${id}`, { method: "DELETE", credentials: "include" });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "No se pudo eliminar");
-      load();
-      toast.ok("Usuario eliminado");
-    } catch (err) {
-      toast.err(err.message);
-    }
-  };
-
-  if (me?.role !== "admin") {
-    return (
-      <div className="p-8 text-center text-[13px]" style={{ color: C.textDim }}>
-        Solo administradores pueden gestionar usuarios.
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-8 max-w-3xl space-y-8">
-      <div>
-        <h2 className="text-[18px] font-bold mb-1" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>Usuarios del sistema</h2>
-        <p className="text-[12.5px]" style={{ color: C.textDim }}>Cuentas con acceso a LP Sport. Los empleados ven y editan pedidos; los admins gestionan usuarios.</p>
-      </div>
-
-      <form onSubmit={createUser} className="rounded-2xl p-5 space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}`, boxShadow: ELEV.card }}>
-        <SectionLabel>Nuevo usuario</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="Usuario" className="px-3 py-2.5 rounded-xl text-[13px] outline-none" style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }} autoComplete="off" />
-          <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Contraseña" className="px-3 py-2.5 rounded-xl text-[13px] outline-none" style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }} />
-          <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="px-3 py-2.5 rounded-xl text-[13px] outline-none" style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }}>
-            <option value="empleado">Empleado</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <Btn variant="primary" icon={Plus} disabled={saving || !form.username.trim() || !form.password}>{saving ? "Creando…" : "Crear usuario"}</Btn>
       </form>
-
-      {error && <div className="text-[12px] flex items-center gap-2" style={{ color: C.danger }}><AlertTriangle size={14} />{error}</div>}
-
-      <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.border}`, background: C.surface }}>
-        {loading ? (
-          <div className="p-8 text-center text-[12px]" style={{ color: C.textMute }}>Cargando…</div>
-        ) : users.length === 0 ? (
-          <div className="p-8 text-center text-[12px]" style={{ color: C.textMute }}>No hay usuarios</div>
-        ) : (
-          <table className="w-full text-left text-[12.5px]">
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.textMute }}>
-                <th className="px-4 py-3 font-semibold">Usuario</th>
-                <th className="px-4 py-3 font-semibold">Rol</th>
-                <th className="px-4 py-3 font-semibold">Estado</th>
-                <th className="px-4 py-3 font-semibold text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td className="px-4 py-3 font-semibold" style={{ color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{u.username}</td>
-                  <td className="px-4 py-3 capitalize" style={{ color: C.textDim }}>{u.role}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg" style={{ background: u.active ? C.ok + "22" : C.danger + "22", color: u.active ? C.ok : C.danger }}>
-                      {u.active ? "Activo" : "Inactivo"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      <Btn size="sm" variant="ghost" onClick={() => {
-                        const p = prompt("Nueva contraseña (mín. 6 caracteres):");
-                        if (p && p.length >= 6) patchUser(u.id, { password: p });
-                        else if (p) toast.warn("Contraseña muy corta");
-                      }}>Clave</Btn>
-                      <Btn size="sm" variant="ghost" onClick={() => patchUser(u.id, { role: u.role === "admin" ? "empleado" : "admin" })}>
-                        {u.role === "admin" ? "→ Empleado" : "→ Admin"}
-                      </Btn>
-                      <Btn size="sm" variant="ghost" onClick={() => patchUser(u.id, { active: !u.active })}>
-                        {u.active ? "Desactivar" : "Activar"}
-                      </Btn>
-                      <Btn size="sm" variant="ghost" icon={Trash2} onClick={() => removeUser(u.id, u.username)} />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
     </div>
   );
 };
@@ -1362,7 +1507,7 @@ const WelcomeModal = ({ onClose }) => {
         <div className="flex justify-center mb-4">
           <LP3DLogo size={64} />
         </div>
-        <h2 className="text-[20px] font-bold mb-1.5" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.02em" }}>
+        <h2 className="text-[20px] font-bold mb-1.5" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif", letterSpacing: "0.02em" }}>
           ¿Querés acceso más rápido?
         </h2>
         <p className="text-[13px] leading-relaxed mb-5" style={{ color: C.textDim }}>
@@ -1388,7 +1533,7 @@ const WelcomeModal = ({ onClose }) => {
         <Btn variant="primary" icon={Download} onClick={dismissAndDownload} className="w-full justify-center">
           Descargar al escritorio
         </Btn>
-        <button onClick={dismissAndStay} className="block w-full mt-3 text-[12px] py-2 transition-colors hover:text-white" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif" }}>
+        <button onClick={dismissAndStay} className="block w-full mt-3 text-[12px] py-2 transition-colors hover:text-white" style={{ color: C.textMute, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>
           Seguir en el navegador
         </button>
       </div>
@@ -1397,29 +1542,175 @@ const WelcomeModal = ({ onClose }) => {
 };
 
 // ── Lightbox ─────────────────────────────────────────────────────
-const Lightbox = ({ archivo, onClose }) => {
+// v9 — supports an array of files with prev/next navigation, contains the full image,
+// and never crashes on non-image types (PSD/AI/PDF): shows a fallback panel instead.
+const Lightbox = ({ archivo, archivos, initialIndex = 0, onClose }) => {
+  // Normalize input — accept either a single archivo or a list
+  const list = useMemo(() => {
+    if (Array.isArray(archivos) && archivos.length) return archivos.filter(Boolean);
+    if (archivo) return [archivo];
+    return [];
+  }, [archivos, archivo]);
+  const [idx, setIdx] = useState(Math.min(Math.max(0, initialIndex), Math.max(0, list.length - 1)));
+  useEffect(() => { setIdx(Math.min(Math.max(0, initialIndex), Math.max(0, list.length - 1))); }, [list.length, initialIndex]);
+
+  const cur = list[idx] || null;
+  const canPrev = list.length > 1;
+  const canNext = list.length > 1;
+  const goPrev = () => setIdx(i => (i - 1 + list.length) % list.length);
+  const goNext = () => setIdx(i => (i + 1) % list.length);
+
   useEffect(() => {
-    const h = e => e.key === "Escape" && onClose();
+    const h = (e) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft" && canPrev) goPrev();
+      else if (e.key === "ArrowRight" && canNext) goNext();
+    };
     window.addEventListener("keydown", h);
+    const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", h); document.body.style.overflow = ""; };
-  }, [onClose]);
-  if (!archivo?.dataUrl) return null;
+    return () => { window.removeEventListener("keydown", h); document.body.style.overflow = prev; };
+  }, [onClose, canPrev, canNext, list.length]);
+
+  if (!cur) return null;
+  const isImage = cur.type?.startsWith("image/") && cur.dataUrl;
+  const extension = (cur.type || "").split("/")[1]?.toUpperCase() || (cur.name?.split(".").pop() || "ARCHIVO").toUpperCase();
+
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: "rgba(0,0,0,0.96)", backdropFilter: "blur(12px)" }} onClick={onClose}>
-      <div className="flex items-center justify-between px-6 py-4 shrink-0" onClick={e => e.stopPropagation()}>
-        <div>
-          <div className="text-[14px] font-semibold" style={{ color: C.text }}>{archivo.name}</div>
-          <div className="text-[11px]" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{fmtBytes(archivo.size)} · {archivo.type?.split("/")[1]?.toUpperCase()}</div>
+    <div className="fixed inset-0 z-[60] flex flex-col" style={{ background: "rgba(0,0,0,0.96)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }} onClick={onClose}>
+      {/* Top bar — v9.1: prominent Volver button on the LEFT */}
+      <div className="flex items-center justify-between px-5 py-3.5 shrink-0 gap-3" onClick={e => e.stopPropagation()} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <button
+          onClick={onClose}
+          className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl transition-all shrink-0"
+          style={{ background: "rgba(255,255,255,0.06)", color: C.text, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" }}
+          onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.color = C.accent; e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${C.accent}55`; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = C.text; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(255,255,255,0.08)"; }}
+          title="Volver (Esc)"
+        >
+          <ArrowLeft size={15} strokeWidth={2.4} />
+          <span className="text-[13px] font-bold" style={{ fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>Volver</span>
+        </button>
+
+        <div className="min-w-0 flex-1 text-center px-3">
+          <div className="text-[13.5px] font-semibold truncate" style={{ color: C.text }}>{cur.name || `archivo-${idx + 1}`}</div>
+          <div className="text-[10.5px]" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>
+            {fmtBytes(cur.size || 0)} · {extension}
+            {list.length > 1 && <span> · {idx + 1} de {list.length}</span>}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <a href={archivo.dataUrl} download={archivo.name}><Btn icon={Download}>Descargar</Btn></a>
-          <Btn onClick={onClose} icon={X}>ESC</Btn>
+
+        <div className="flex gap-2 items-center shrink-0">
+          {cur.dataUrl && <a href={cur.dataUrl} download={cur.name || `archivo-${idx + 1}`}><Btn icon={Download}>Descargar</Btn></a>}
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors"
+            style={{ background: "rgba(255,255,255,0.04)", color: C.textDim }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; e.currentTarget.style.color = C.text; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = C.textDim; }}
+          >
+            <X size={16} />
+          </button>
         </div>
       </div>
-      <div className="flex-1 flex items-center justify-center p-8" onClick={e => e.stopPropagation()}>
-        <img src={archivo.dataUrl} alt="" className="max-w-full max-h-full object-contain rounded-2xl" style={{ boxShadow: "0 32px 96px rgba(0,0,0,0.8)" }} />
+
+      {/* Body: image OR fallback. The whole body is clickable to close, but arrows / image are not. */}
+      <div className="flex-1 flex items-center justify-center relative overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Prev arrow */}
+        {canPrev && (
+          <button
+            onClick={goPrev}
+            aria-label="Anterior"
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center transition-all"
+            style={{ background: "rgba(255,255,255,0.08)", color: C.text, backdropFilter: "blur(8px)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.16)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+          >
+            <ChevronRight size={20} style={{ transform: "rotate(180deg)" }} />
+          </button>
+        )}
+
+        {/* Content */}
+        <div className="max-w-[92vw] max-h-[78vh] flex items-center justify-center p-4">
+          {isImage ? (
+            <img
+              src={cur.dataUrl}
+              alt={cur.name || ""}
+              className="rounded-2xl"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "78vh",
+                width: "auto",
+                height: "auto",
+                objectFit: "contain",
+                boxShadow: "0 32px 96px rgba(0,0,0,0.8)",
+                background: "rgba(255,255,255,0.04)"
+              }}
+              draggable={false}
+            />
+          ) : (
+            <div className="rounded-2xl px-10 py-12 text-center max-w-md" style={{
+              background: "linear-gradient(180deg, " + C.surface + " 0%, " + C.bgSoft + " 100%)",
+              boxShadow: "0 32px 96px rgba(0,0,0,0.8)"
+            }}>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ background: C.accentSoft, color: C.accent }}>
+                <FileText size={28} strokeWidth={1.8} />
+              </div>
+              <div className="text-[16px] font-bold mb-2" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>{cur.name || "Archivo"}</div>
+              <div className="text-[12px] mb-5" style={{ color: C.textDim }}>
+                Formato <span style={{ color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{extension}</span> · no se puede previsualizar en el navegador
+              </div>
+              {cur.dataUrl && (
+                <a href={cur.dataUrl} download={cur.name || `archivo.${extension.toLowerCase()}`}>
+                  <Btn variant="primary" icon={Download}>Descargar archivo</Btn>
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Next arrow */}
+        {canNext && (
+          <button
+            onClick={goNext}
+            aria-label="Siguiente"
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center transition-all"
+            style={{ background: "rgba(255,255,255,0.08)", color: C.text, backdropFilter: "blur(8px)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.16)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+          >
+            <ChevronRight size={20} />
+          </button>
+        )}
       </div>
+
+      {/* Thumbnail strip for quick navigation when many files */}
+      {list.length > 1 && (
+        <div className="flex justify-center pb-5 gap-2 px-6 overflow-x-auto" onClick={e => e.stopPropagation()}>
+          {list.map((a, i) => {
+            const ai = a?.type?.startsWith("image/") && a.dataUrl;
+            return (
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                aria-label={`Ir al archivo ${i + 1}`}
+                className="w-14 h-14 rounded-lg overflow-hidden shrink-0 transition-all"
+                style={{
+                  border: `2px solid ${i === idx ? C.accent : "rgba(255,255,255,0.1)"}`,
+                  background: C.surface2,
+                  opacity: i === idx ? 1 : 0.6
+                }}
+              >
+                {ai
+                  ? <img src={a.dataUrl} alt="" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center" style={{ color: C.textMute }}><FileText size={18} /></div>
+                }
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -1428,7 +1719,7 @@ const Lightbox = ({ archivo, onClose }) => {
 const InfoBox = ({ label, value, mono, color = C.text, sub }) => (
   <div className="p-4 rounded-xl" style={{ background: C.surface2, boxShadow: ELEV.card }}>
     <div className="text-[9.5px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: C.textMute }}>{label}</div>
-    <div className="text-[20px] font-bold leading-tight" style={{ color, fontFamily: mono ? "'JetBrains Mono', monospace" : "'Barlow', sans-serif", ...PREMIUM_FONT, letterSpacing: mono ? "-0.01em" : "0" }}>{value}</div>
+    <div className="text-[20px] font-bold leading-tight" style={{ color, fontFamily: mono ? "'JetBrains Mono', monospace" : "'D-DIN Expanded', 'Barlow', sans-serif", ...PREMIUM_FONT, letterSpacing: mono ? "-0.01em" : "0" }}>{value}</div>
     {sub && <div className="text-[10px] mt-1.5" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{sub}</div>}
   </div>
 );
@@ -1445,7 +1736,7 @@ const RosterCell = ({ value, onChange, type = "text", placeholder, options, mono
     outline: "none",
     fontSize: 14,
     fontWeight: 500,
-    fontFamily: mono ? "'JetBrains Mono', monospace" : "'Barlow', sans-serif",
+    fontFamily: mono ? "'JetBrains Mono', monospace" : "'D-DIN Expanded', 'Barlow', sans-serif",
     fontFeatureSettings: "'tnum' 1",
     textAlign: align,
     transition: "all 160ms cubic-bezier(.2,.8,.2,1)"
@@ -1455,80 +1746,46 @@ const RosterCell = ({ value, onChange, type = "text", placeholder, options, mono
 };
 
 const RosterGrid = ({ roster, onChange, onPasteWhatsApp }) => {
-  const totalMoney = roster.reduce((a, b) => a + (Number(b.total) || 0), 0);
-  const totalUnidades = roster.reduce((a, b) => a + (Number(b.cantidad) || 0), 0);
+  const totalCamisetas = roster.reduce((a, b) => a + (Number(b.camiseta) || 0), 0);
+  const totalShorts    = roster.reduce((a, b) => a + (Number(b.short)    || 0), 0);
   const updateRow = (id, patch) => onChange(roster.map(r => r.id === id ? { ...r, ...patch } : r));
   const deleteRow = id => onChange(roster.filter(r => r.id !== id));
-  const [showBulk, setShowBulk] = useState(false);
-  const [bulkPrice, setBulkPrice] = useState("");
-
-  const applyBulkPrice = () => {
-    const n = Number(bulkPrice);
-    if (!n || n <= 0) { toast.warn("Ingresá un precio unitario válido"); return; }
-    onChange(roster.map(r => ({ ...r, total: n * (Number(r.cantidad) || 1) })));
-    toast.ok(`Aplicado ${ARS(n)} × cantidad a las ${roster.length} filas`);
-    setShowBulk(false);
-    setBulkPrice("");
-  };
 
   return (
     <>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div className="text-[12px] font-semibold" style={{ color: C.textDim, fontFamily: "'Barlow', sans-serif", ...PREMIUM_FONT }}>
-          <span style={{ color: C.text, fontWeight: 700 }}>{roster.length}</span> {roster.length === 1 ? "fila" : "filas"}{totalUnidades > 0 ? ` · ${totalUnidades} unid.` : ""}
-          {totalMoney > 0 && <span style={{ color: C.accent, fontWeight: 700 }}> · {ARS(totalMoney)}</span>}
+        <div className="text-[12px] font-semibold" style={{ color: C.textDim, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif", ...PREMIUM_FONT }}>
+          <span style={{ color: C.text, fontWeight: 700 }}>{roster.length}</span> {roster.length === 1 ? "fila" : "filas"}
+          {totalCamisetas > 0 && <span> · {totalCamisetas} {totalCamisetas === 1 ? "camiseta" : "camisetas"}</span>}
+          {totalShorts > 0 && <span> · {totalShorts} {totalShorts === 1 ? "short" : "shorts"}</span>}
         </div>
         <div className="flex gap-2 items-center">
-          {roster.length > 0 && <Btn size="sm" variant="ghost" icon={DollarSign} onClick={() => setShowBulk(s => !s)}>Precio unitario</Btn>}
           {onPasteWhatsApp && <Btn size="sm" variant="ghost" icon={MessageCircle} onClick={onPasteWhatsApp}>WhatsApp</Btn>}
           <Btn size="sm" variant="ghost" icon={Plus} onClick={() => onChange([...roster, newRow()])}>Fila</Btn>
         </div>
       </div>
 
-      {showBulk && (
-        <div className="flex items-center gap-3 p-3 rounded-xl mb-3" style={{ background: C.surface2, boxShadow: ELEV.highlight, animation: "fadeSlideIn 200ms cubic-bezier(.2,.8,.2,1) both" }}>
-          <DollarSign size={15} style={{ color: C.accent }} className="shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-semibold mb-1" style={{ color: C.textDim, fontFamily: "'Barlow', sans-serif" }}>Aplicar precio × cantidad a todas las filas</div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={bulkPrice}
-                onChange={e => setBulkPrice(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") applyBulkPrice(); }}
-                placeholder="Precio por unidad"
-                autoFocus
-                className="flex-1 min-w-0 px-3 py-2 rounded-lg outline-none text-[13px]"
-                style={{ background: C.surface3, color: C.text, fontFamily: "'JetBrains Mono', monospace", boxShadow: ELEV.highlight, ...PREMIUM_FONT }}
-              />
-              <Btn size="sm" variant="primary" onClick={applyBulkPrice} disabled={!bulkPrice}>Aplicar</Btn>
-              <Btn size="sm" variant="ghost" onClick={() => { setShowBulk(false); setBulkPrice(""); }}>Cancelar</Btn>
-            </div>
-          </div>
-        </div>
-      )}
       {roster.length === 0 ? (
         <div className="p-10 rounded-2xl text-center" style={{ background: C.surface2, boxShadow: ELEV.card }}>
           <MessageCircle size={24} className="mx-auto mb-3" style={{ color: C.textMute }} />
-          <div className="text-[14px] font-bold mb-1" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>Sin filas todavía</div>
+          <div className="text-[14px] font-bold mb-1" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>Sin filas todavía</div>
           <div className="text-[12px]" style={{ color: C.textDim }}>Pegá el mensaje del cliente o agregá filas a mano</div>
         </div>
       ) : (
         <div className="rounded-2xl overflow-hidden" style={{ background: C.surface2, boxShadow: ELEV.card }}>
           <div className="overflow-x-auto">
-            <table className="w-full" style={{ minWidth: 620 }}>
+            <table className="w-full" style={{ minWidth: 520 }}>
               <thead>
                 <tr style={{ background: "rgba(255,255,255,0.025)", borderBottom: `1px solid ${C.border}` }}>
                   {[
                     { label: "#", w: 48 },
                     { label: "Nombre", w: null },
-                    { label: "Talle", w: 96 },
-                    { label: "Cant", w: 80 },
-                    { label: "Adicionales", w: null },
-                    { label: "Total", w: 140 },
+                    { label: "Camiseta", w: 100 },
+                    { label: "Short", w: 90 },
+                    { label: "Talle", w: 90 },
                     { label: "", w: 44 }
                   ].map((h, i) => (
-                    <th key={i} className="text-left text-[10.5px] font-bold uppercase tracking-[0.18em] px-3 py-3.5" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif", width: h.w || undefined }}>{h.label}</th>
+                    <th key={i} className="text-left text-[10.5px] font-bold uppercase tracking-[0.18em] px-3 py-3.5" style={{ color: C.textMute, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif", width: h.w || undefined }}>{h.label}</th>
                   ))}
                 </tr>
               </thead>
@@ -1540,10 +1797,9 @@ const RosterGrid = ({ roster, onChange, onPasteWhatsApp }) => {
                   >
                     <td className="px-3 py-1 text-[13px] text-center font-semibold" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{i + 1}</td>
                     <td><RosterCell value={r.nombre} onChange={v => updateRow(r.id, { nombre: v })} placeholder="Nombre" /></td>
+                    <td><RosterCell value={r.camiseta} onChange={v => updateRow(r.id, { camiseta: v })} type="number" mono align="center" placeholder="0" /></td>
+                    <td><RosterCell value={r.short} onChange={v => updateRow(r.id, { short: v })} type="number" mono align="center" placeholder="0" /></td>
                     <td><RosterCell value={r.talle} onChange={v => updateRow(r.id, { talle: v })} options={TALLES_ARR} mono align="center" /></td>
-                    <td><RosterCell value={r.cantidad} onChange={v => updateRow(r.id, { cantidad: v })} type="number" mono align="center" /></td>
-                    <td><RosterCell value={r.adicionales} onChange={v => updateRow(r.id, { adicionales: v })} placeholder="—" /></td>
-                    <td><RosterCell value={r.total} onChange={v => updateRow(r.id, { total: v })} type="number" mono align="right" placeholder="0" /></td>
                     <td className="text-center">
                       <button onClick={() => deleteRow(r.id)} className="w-7 h-7 flex items-center justify-center rounded-lg transition-all" style={{ color: C.textMute }}
                         onMouseEnter={e => { e.currentTarget.style.background = C.dangerSoft; e.currentTarget.style.color = C.danger; }}
@@ -1555,15 +1811,6 @@ const RosterGrid = ({ roster, onChange, onPasteWhatsApp }) => {
                   </tr>
                 ))}
               </tbody>
-              {totalMoney > 0 && (
-                <tfoot>
-                  <tr style={{ borderTop: `1px solid ${C.border}`, background: "rgba(255,255,255,0.025)" }}>
-                    <td colSpan={5} className="text-right px-4 py-3 text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif" }}>Total</td>
-                    <td className="text-right px-4 py-3 text-[15px] font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{ARS(totalMoney)}</td>
-                    <td />
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
         </div>
@@ -1594,7 +1841,7 @@ const NuevaEmpresaModal = ({ onClose, onSave, existingIds, existing }) => {
     <Modal title={title} onClose={onClose} width="460px">
       {/* Preview */}
       <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-        <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[13px] font-black shrink-0" style={{ background: form.color + "22", color: form.color, border: `1px solid ${form.color}44`, fontFamily: "'Barlow Condensed', sans-serif" }}>{getInitials(form.nombre) || "?"}</div>
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[13px] font-black shrink-0" style={{ background: form.color + "22", color: form.color, border: `1px solid ${form.color}44`, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif" }}>{getInitials(form.nombre) || "?"}</div>
         <div><div className="text-[13.5px] font-bold" style={{ color: C.text }}>{form.nombre || "Sin nombre"}</div><div className="text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{isEdit ? existing.id : `EMP-${nextNum}`}</div></div>
       </div>
       <Input label="Nombre de la empresa *" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Real Berazategui FC" />
@@ -1618,30 +1865,44 @@ const NuevaEmpresaModal = ({ onClose, onSave, existingIds, existing }) => {
 
 const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedCliente }) => {
   const nextNum = useMemo(() => { const n = existingIds.map(id => parseInt(id.split("-").pop())).filter(n => !isNaN(n)); return String((Math.max(0, ...n)) + 1).padStart(3, "0"); }, [existingIds]);
-  const [form, setForm] = useState({ nombre: "", cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [] });
+  const [form, setForm] = useState({ cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [] });
   const tipoOptions = ["Camiseta titular", "Camiseta suplente", "Camiseta arquero", "Conjunto", "Short titular", "Short suplente", "Egresados", "Buzo polar", "Campera", "Otros"];
-  const addArchivo = (f) => { if (f) setForm(prev => ({ ...prev, archivos: [...prev.archivos, f] })); };
+  const addArchivo = async (f) => {
+    if (!f) return;
+    // v10: auto-compress phone photos to keep storage size sane
+    const compressed = await compressImage(f);
+    setForm(prev => ({ ...prev, archivos: [...prev.archivos, compressed] }));
+  };
   const removeArchivo = (idx) => setForm(prev => ({ ...prev, archivos: prev.archivos.filter((_, i) => i !== idx) }));
-  const submit = () => {
+  const submit = async () => {
     if (!form.cliente.trim()) { toast.warn("Falta el cliente"); return; }
     const productos = [form.tipo1, form.tipo2, form.tipo3].filter(t => t?.trim()).map(tipo => ({ tipo }));
     if (!productos.length) { toast.warn("Elegí al menos un producto"); return; }
     const cliMatch = customers.find(c => c.equipo === form.cliente || c.nombre === form.cliente);
+
+    // Auto-extract palette from the first image attached, if any
+    const firstImage = form.archivos.find(a => a?.type?.startsWith("image/") && a.dataUrl);
+    let colores = ["#5EA9E8", "#0a0a0a"];
+    if (firstImage) {
+      try {
+        const palette = await extractPalette(firstImage.dataUrl, 4);
+        if (palette.length) colores = palette;
+      } catch {}
+    }
+
     const order = {
       id: `PED-2026-${nextNum}`,
-      nombre: form.nombre.trim(),
       clienteId: cliMatch?.id || "CLI-NEW",
       cliente: form.cliente,
       delegado: cliMatch?.nombre || "",
       whatsapp: cliMatch?.whatsapp || "",
       productos,
-      total: 0, costo: 0, sena: 0, saldo: 0,
       estado: "diseno",
       fechaPedido: today(),
       fechaEntrega: form.fechaEntrega,
       diseno: `EP-DSG-${String(parseInt(nextNum) + 100)}`,
       observaciones: form.observaciones,
-      colores: ["#5EA9E8", "#000000"],
+      colores,
       archivosDiseno: form.archivos,
       archivoDiseno: form.archivos[0] || null  // back-compat for code that still reads single
     };
@@ -1649,9 +1910,22 @@ const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedClien
   };
   return (
     <Modal title={`Nuevo pedido · PED-2026-${nextNum}`} onClose={onClose} width="580px">
-      <Input label="Nombre del pedido" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Camisetas torneo clausura, Conjunto verano 2026…" />
       <div className="grid grid-cols-2 gap-3">
-        <Input label={lockedCliente ? "Pedido para (editable)" : "Cliente / Equipo *"} value={form.cliente} onChange={e => setForm({ ...form, cliente: e.target.value })} placeholder="Ej: Club San Martín" />
+        {lockedCliente ? (
+          <div>
+            <SectionLabel>Pedido para</SectionLabel>
+            <div className="mt-1.5 px-3 py-2.5 rounded-xl flex items-center justify-between" style={{ background: C.accentSoft, border: `1px solid ${C.accent}44`, color: C.text }}>
+              <div className="flex items-center gap-2">
+                <Building2 size={14} style={{ color: C.accent }} />
+                <span className="text-[13px] font-semibold">{lockedCliente}</span>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ background: C.accent + "22", color: C.accent, fontFamily: "'JetBrains Mono',monospace" }}>BLOQUEADO</span>
+            </div>
+            <div className="text-[10.5px] mt-1.5" style={{ color: C.textMute }}>Estás creando un pedido desde adentro de esta empresa. Si querés crear un pedido para otra, cerrá este formulario y volvé al listado de empresas.</div>
+          </div>
+        ) : (
+          <Input label="Cliente / Equipo *" value={form.cliente} onChange={e => setForm({ ...form, cliente: e.target.value })} placeholder="Ej: Club San Martín" />
+        )}
         <Input label="Fecha de entrega *" type="date" value={form.fechaEntrega} onChange={e => setForm({ ...form, fechaEntrega: e.target.value })} />
       </div>
       <div>
@@ -1719,14 +1993,14 @@ const EmpresaCard = ({ empresa, orders, onClick }) => {
               background: "linear-gradient(135deg, " + empresa.color + "33 0%, " + empresa.color + "11 100%)",
               color: empresa.color,
               boxShadow: "inset 0 1px 0 0 " + empresa.color + "44, 0 0 0 1px " + empresa.color + "33",
-              fontFamily: "'Barlow Condensed', sans-serif"
+              fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif"
             }}>
             {getInitials(empresa.nombre)}
           </div>
           <ChevronRight size={14} className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: empresa.color }} />
         </div>
         <div className="flex-1">
-          <div className="text-[14.5px] font-bold leading-tight line-clamp-2 mb-1" style={{ color: C.text, fontFamily: "'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{empresa.nombre}</div>
+          <div className="text-[14.5px] font-bold leading-tight line-clamp-2 mb-1" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{empresa.nombre}</div>
           <div className="text-[11px]" style={{ color: C.textDim, ...PREMIUM_FONT }}>
             {orders.length === 0 ? "Sin pedidos" : `${orders.length} pedido${orders.length > 1 ? "s" : ""}${activos ? ` · ${activos} activo${activos > 1 ? "s" : ""}` : ""}`}
           </div>
@@ -1771,17 +2045,16 @@ const KanbanCard = ({ order, onClick, onDragStart, onDragEnd }) => {
           {isLate && <AlertTriangle size={11} style={{ color: C.danger }} />}
         </div>
       </div>
-      <div className="text-[12.5px] font-semibold leading-tight mb-1 line-clamp-2" style={{ color: C.text }}>
-        {order.nombre || order.cliente}
+      <div className="text-[12.5px] font-semibold leading-tight mb-2.5 line-clamp-2" style={{ color: C.text }}>
+        {order.cliente}
       </div>
-      {order.nombre && (
-        <div className="text-[10.5px] mb-1 truncate" style={{ color: C.textDim }}>{order.cliente}</div>
-      )}
-      <div className="text-[10.5px] mb-2.5 line-clamp-2" style={{ color: order.nombre ? C.textMute : C.textDim }}>
+      <div className="text-[10.5px] mb-2.5 line-clamp-2" style={{ color: C.textDim }}>
         {order.productos?.map(p => p.tipo).join(" · ")}
       </div>
       <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
-        <span className="text-[11px] font-bold" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{ARS(order.total)}</span>
+        <span className="text-[11px] font-bold" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>
+          {(order.productos || []).reduce((s, p) => s + (Number(p.cantidad) || 0), 0)} {((order.productos || []).reduce((s, p) => s + (Number(p.cantidad) || 0), 0) === 1) ? "unidad" : "unidades"}
+        </span>
         <span className="text-[10px] font-semibold" style={{ color: isLate ? C.danger : C.textMute, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>
           {isLate ? `${Math.abs(days)}d tarde` : days === 0 ? "hoy" : `${days}d`}
         </span>
@@ -1791,23 +2064,11 @@ const KanbanCard = ({ order, onClick, onDragStart, onDragEnd }) => {
 };
 
 // ── DetallePedidoDrawer ───────────────────────────────────────────
-const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate, onUpdate, onViewDesign, onOpenPlanilla }) => {
+const DetallePedidoDrawer = ({ order, onClose, onAdvance, onArchive, onDelete, onDuplicate, onUpdate, onViewDesign, onOpenPlanilla }) => {
   const days = daysDiff(order.fechaEntrega);
   const isLate = days < 0 && order.estado !== "entrega";
   const curIdx = estadoFlow.indexOf(order.estado);
   const isFinal = order.estado === "entrega";
-  const [editingNombre, setEditingNombre] = useState(false);
-  const [nombreDraft, setNombreDraft] = useState(order.nombre || "");
-  const nombreRef = useRef(null);
-  useEffect(() => { if (editingNombre) nombreRef.current?.focus(); }, [editingNombre]);
-  const saveNombre = () => {
-    setEditingNombre(false);
-    if (nombreDraft.trim() !== (order.nombre || "")) {
-      onUpdate?.({ ...order, nombre: nombreDraft.trim() });
-    }
-  };
-  // Automation: if the planilla has any totals filled in, that's the source of truth for the order total
-  const planillaTotal = (order.roster || []).reduce((a, r) => a + (Number(r.total) || 0), 0);
   const bodyRef = useRef(null);
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
@@ -1826,35 +2087,12 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
       }}>
       {/* Sticky Header */}
       <div className="flex items-start justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
-        <div className="min-w-0 flex-1 mr-3">
+        <div className="min-w-0">
           <div className="text-[10.5px] mb-1" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>{order.id}</div>
-          {editingNombre ? (
-            <input
-              ref={nombreRef}
-              value={nombreDraft}
-              onChange={e => setNombreDraft(e.target.value)}
-              onBlur={saveNombre}
-              onKeyDown={e => { if (e.key === "Enter") saveNombre(); if (e.key === "Escape") { setEditingNombre(false); setNombreDraft(order.nombre || ""); } }}
-              placeholder="Nombre del pedido…"
-              className="w-full outline-none bg-transparent border-b text-[21px] leading-tight"
-              style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700, borderColor: C.accent }}
-            />
-          ) : (
-            <div
-              className="text-[21px] leading-tight cursor-pointer group flex items-center gap-2"
-              style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700 }}
-              onClick={() => { setNombreDraft(order.nombre || ""); setEditingNombre(true); }}
-              title="Clic para editar el nombre"
-            >
-              <span className="truncate">{order.nombre || order.cliente}</span>
-              <Edit3 size={12} className="shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: C.accent }} />
-            </div>
-          )}
-          <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>
-            {order.nombre ? `${order.cliente}${order.delegado ? " · " + order.delegado : ""}` : order.delegado}
-          </div>
+          <div className="text-[21px] leading-tight truncate" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700 }}>{order.cliente}</div>
+          <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>{order.delegado}</div>
         </div>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 shrink-0"><X size={17} style={{ color: C.textDim }} /></button>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 shrink-0 ml-3"><X size={17} style={{ color: C.textDim }} /></button>
       </div>
 
       {/* Scrollable body */}
@@ -1882,15 +2120,24 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
       </div>
 
       {/* Primary CTA */}
-      {!isFinal && (
+      {order.estado === "entrega" && (
+        <Btn icon={Archive} onClick={() => { if (window.confirm(`¿Archivar ${order.id}? Va a desaparecer del listado activo pero queda guardado.`)) { onArchive?.(order.id); onClose(); } }} className="w-full justify-center mb-2" variant="ghost">
+          Archivar pedido
+        </Btn>
+      )}
+      {order.estado === "archivado" && (
+        <Btn icon={ArrowLeft} onClick={() => onUpdate({ ...order, estado: "entrega" })} className="w-full justify-center mb-2" variant="ghost">
+          Restaurar de archivo
+        </Btn>
+      )}
+      {!isFinal && order.estado !== "archivado" && (
         <Btn variant="primary" icon={ChevronRight} onClick={() => onAdvance(order.id)} className="w-full justify-center">
           Avanzar a "{estadoConfig[estadoFlow[curIdx + 1]]?.label}"
         </Btn>
       )}
 
-      {/* Key facts: total auto-derived from planilla if it has data; otherwise stored total */}
-      <div className="grid grid-cols-2 gap-3">
-        <InfoBox label="Total" value={ARS(planillaTotal > 0 ? planillaTotal : order.total)} mono sub={planillaTotal > 0 && planillaTotal !== order.total ? "auto · planilla" : undefined} />
+      {/* Key fact: only delivery date — no prices in v9 */}
+      <div>
         <InfoBox label="Entrega" value={order.fechaEntrega} mono color={isLate ? C.danger : C.text} sub={isLate ? `${Math.abs(days)}d de retraso` : `${days}d restantes`} />
       </div>
 
@@ -1957,7 +2204,14 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
 };
 
 // ── PEDIDOS page ─────────────────────────────────────────────────
-const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, setEmpresas, onViewDesign, onOpenPlanilla, searchQuery = "" }) => {
+const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, setEmpresas, onViewDesign, onOpenPlanilla, pendingOrderView, clearPendingOrderView, searchQuery = "" }) => {
+  // v10: open an order pushed in from Dashboard/Palette
+  useEffect(() => {
+    if (!pendingOrderView) return;
+    const o = orders.find(x => x.id === pendingOrderView);
+    if (o) setSelected(o);
+    clearPendingOrderView?.();
+  }, [pendingOrderView, orders]);
   const [selectedEmpresa, setSelectedEmpresa] = useState(null);
   const [showNuevaEmpresa, setShowNuevaEmpresa] = useState(false);
   const [editingEmpresa, setEditingEmpresa] = useState(null);
@@ -1979,7 +2233,11 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
     if (sortBy === "recientes") return new Date(b.fechaPedido) - new Date(a.fechaPedido);
     if (sortBy === "antiguos")  return new Date(a.fechaPedido) - new Date(b.fechaPedido);
     if (sortBy === "urgencia")  return new Date(a.fechaEntrega) - new Date(b.fechaEntrega);
-    if (sortBy === "totalDesc") return (Number(b.total) || 0) - (Number(a.total) || 0);
+    if (sortBy === "unidadesDesc") {
+      const sumA = (a.productos || []).reduce((s, p) => s + (Number(p.cantidad) || 0), 0);
+      const sumB = (b.productos || []).reduce((s, p) => s + (Number(p.cantidad) || 0), 0);
+      return sumB - sumA;
+    }
     if (sortBy === "estado")    return estadoFlow.indexOf(a.estado) - estadoFlow.indexOf(b.estado);
     return 0;
   };
@@ -2002,7 +2260,19 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
     );
   }, [empresas, q, orders]);
 
-  const advanceOrder = id => setOrders(orders.map(o => { if (o.id !== id) return o; const i = estadoFlow.indexOf(o.estado); return { ...o, estado: estadoFlow[Math.min(i + 1, 3)] }; }));
+  // v10: every state change logs an activity entry to the server (best-effort, silent if offline)
+  const advanceOrder = id => setOrders(orders.map(o => {
+    if (o.id !== id) return o;
+    const i = estadoFlow.indexOf(o.estado);
+    const next = estadoFlow[Math.min(i + 1, estadoFlow.length - 1)];
+    logActivity("estado.avance", `${o.id} → ${estadoConfig[next].label}`, { orderId: o.id, meta: { from: o.estado, to: next, cliente: o.cliente } });
+    return { ...o, estado: next };
+  }));
+  const archiveOrder = id => setOrders(orders.map(o => {
+    if (o.id !== id) return o;
+    logActivity("estado.archivado", `${o.id} archivado (${o.cliente})`, { orderId: o.id, meta: { from: o.estado, cliente: o.cliente } });
+    return { ...o, estado: "archivado", fechaArchivado: today() };
+  }));
   const duplicateOrder = (original) => {
     const nums = orders.map(o => parseInt(o.id.split("-").pop())).filter(n => !isNaN(n));
     const nextNum = String((Math.max(0, ...nums)) + 1).padStart(3, "0");
@@ -2013,12 +2283,12 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
       estado: "diseno",
       fechaPedido: today(),
       fechaEntrega: daysFromNow(14),
-      roster: [],            // start with empty planilla (don't carry players)
+      roster: [],
       diseno: `EP-DSG-${String(parseInt(nextNum) + 100)}`,
-      observaciones: original.observaciones || "",
-      total: 0, sena: 0, saldo: 0
+      observaciones: original.observaciones || ""
     };
     setOrders([dupe, ...orders]);
+    logActivity("pedido.duplicado", `${newId} duplicado de ${original.id}`, { orderId: newId, meta: { fromOrder: original.id, cliente: original.cliente } });
     toast.ok(`Pedido ${newId} creado como copia de ${original.id}`);
     return dupe;
   };
@@ -2078,7 +2348,7 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
 
   // ── Empresas grid ──
   if (!selectedEmpresa) return (
-    <div className="px-8 py-6">
+    <div className="px-4 md:px-8 py-4 md:py-6">
       {empresas.length === 0 ? (
         <Card className="p-16 text-center">
           <Folder size={30} className="mx-auto mb-3" style={{ color: C.textMute }} />
@@ -2116,14 +2386,14 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
 
   // ── Empresa detail ──
   return (
-    <div className="px-8 py-6">
+    <div className="px-4 md:px-8 py-4 md:py-6">
       {/* Breadcrumb */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={() => setSelectedEmpresa(null)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-all hover:bg-white/5" style={{ border: `1px solid ${C.border}`, color: C.textDim }}><ArrowLeft size={15} /></button>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[13px] font-black shrink-0" style={{ background: selectedEmpresa.color + "1a", color: selectedEmpresa.color, border: `1px solid ${selectedEmpresa.color}33`, fontFamily: "'Barlow Condensed', sans-serif" }}>{getInitials(selectedEmpresa.nombre)}</div>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[13px] font-black shrink-0" style={{ background: selectedEmpresa.color + "1a", color: selectedEmpresa.color, border: `1px solid ${selectedEmpresa.color}33`, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif" }}>{getInitials(selectedEmpresa.nombre)}</div>
           <div className="min-w-0">
-            <div className="text-[18px] font-black truncate" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>{selectedEmpresa.nombre}</div>
+            <div className="text-[18px] font-black truncate" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif" }}>{selectedEmpresa.nombre}</div>
             <div className="text-[11px]" style={{ color: C.textDim }}>{empresaOrders.length} {empresaOrders.length === 1 ? "pedido" : "pedidos"}{empresaOrders.filter(o => o.estado !== "entrega").length > 0 && ` · ${empresaOrders.filter(o => o.estado !== "entrega").length} activos`}</div>
           </div>
         </div>
@@ -2157,7 +2427,7 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
                 <option value="recientes">Recientes primero</option>
                 <option value="antiguos">Antiguos primero</option>
                 <option value="urgencia">Urgencia (entrega)</option>
-                <option value="totalDesc">Mayor total</option>
+                <option value="unidadesDesc">Más unidades</option>
                 <option value="estado">Por estado</option>
               </Select>
             </div>
@@ -2211,15 +2481,16 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
           ) : (
             <Card className="overflow-hidden">
               <table className="w-full text-[12.5px]">
-                <thead><tr style={{ background: C.surface2 }}>{["ID", "Productos", "Total", "Entrega", "Estado", ""].map(h => <th key={h} className="px-4 py-3 text-left text-[9px] font-black uppercase tracking-widest" style={{ color: C.textMute }}>{h}</th>)}</tr></thead>
+                <thead><tr style={{ background: C.surface2 }}>{["ID", "Productos", "Unidades", "Entrega", "Estado", ""].map(h => <th key={h} className="px-4 py-3 text-left text-[9px] font-black uppercase tracking-widest" style={{ color: C.textMute }}>{h}</th>)}</tr></thead>
                 <tbody>
                   {filtered.map((o, i) => {
                     const days = daysDiff(o.fechaEntrega); const isLate = days < 0 && o.estado !== "entrega";
+                    const totalUnidades = (o.productos || []).reduce((s, p) => s + (Number(p.cantidad) || 0), 0);
                     return (
                       <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }} className="hover:bg-white/[0.015] cursor-pointer transition-colors" onClick={() => setSelected(o)}>
                         <td className="px-4 py-3 font-black text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{o.id}</td>
                         <td className="px-4 py-3" style={{ color: C.text }}>{o.produtos?.map(p => p.tipo).join(" · ") || o.produtos?.join(" · ") || o.productos?.map(p => p.tipo).join(" · ")}</td>
-                        <td className="px-4 py-3 font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>{ARS(o.total)}</td>
+                        <td className="px-4 py-3 font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>{totalUnidades}</td>
                         <td className="px-4 py-3 text-[10.5px]" style={{ color: isLate ? C.danger : C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{o.fechaEntrega}{isLate && ` (${Math.abs(days)}d)`}</td>
                         <td className="px-4 py-3"><Badge dot color={estadoConfig[o.estado].color} bg={estadoConfig[o.estado].bg}>{estadoConfig[o.estado].label}</Badge></td>
                         <td className="px-4 py-3 text-right"><ChevronRight size={13} style={{ color: C.textMute }} /></td>
@@ -2234,7 +2505,7 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
       )}
 
       {showForm && <NuevoPedidoModal onClose={() => setShowForm(false)} onSave={addOrder} customers={customers} existingIds={orders.map(o => o.id)} lockedCliente={selectedEmpresa?.nombre} />}
-      {selected && <DetallePedidoDrawer order={selected} onClose={() => setSelected(null)} onAdvance={advanceOrder} onDelete={deleteOrder} onDuplicate={(o) => { const d = duplicateOrder(o); setSelected(d); }} onUpdate={upd => { setOrders(orders.map(o => o.id === upd.id ? upd : o)); setSelected(upd); }} onViewDesign={id => { setSelected(null); onViewDesign?.(id); }} onOpenPlanilla={id => { setSelected(null); onOpenPlanilla?.(id); }} />}
+      {selected && <DetallePedidoDrawer order={selected} onClose={() => setSelected(null)} onAdvance={advanceOrder} onArchive={archiveOrder} onDelete={deleteOrder} onDuplicate={(o) => { const d = duplicateOrder(o); setSelected(d); }} onUpdate={upd => { setOrders(orders.map(o => o.id === upd.id ? upd : o)); setSelected(upd); }} onViewDesign={id => { setSelected(null); onViewDesign?.(id); }} onOpenPlanilla={id => { setSelected(null); onOpenPlanilla?.(id); }} />}
     </div>
   );
 };
@@ -2262,6 +2533,19 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
   const cli = customers.find(c => c.equipo === d.cliente || c.nombre === d.cliente);
   const linkedOrder = orders.find(o => o.id === d.pedidoVinculado);
   const isImg = d.archivo?.type?.startsWith("image/") && d.archivo?.dataUrl;
+  // Collect all archivos from the parent order for lightbox navigation
+  // Falls back to just this design's archivo if order isn't linked
+  const allArchivos = useMemo(() => {
+    if (linkedOrder?.archivosDiseno?.length) return linkedOrder.archivosDiseno.filter(Boolean);
+    if (d.archivo) return [d.archivo];
+    return [];
+  }, [linkedOrder, d.archivo]);
+  const initialLightboxIndex = useMemo(() => {
+    if (!d.archivo) return 0;
+    const i = allArchivos.findIndex(a => a?.name === d.archivo?.name && a?.size === d.archivo?.size);
+    return Math.max(0, i);
+  }, [allArchivos, d.archivo]);
+  const openLightbox = () => setLightbox(true);
 
   return (
     <>
@@ -2273,16 +2557,33 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
           boxShadow: ELEV.floating + ", 0 0 80px rgba(94,169,232,0.05)",
           ...PREMIUM_FONT
         }}>
-          {/* Sticky Header */}
-          <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
-            <span className="text-[10.5px] font-black" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{d.id}</span>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5"><X size={16} style={{ color: C.textDim }} /></button>
+          {/* Sticky Header — v9: prominent Volver button on the left */}
+          <div className="flex items-center justify-between px-5 py-3.5 shrink-0 gap-3" style={{ borderBottom: `1px solid ${C.border}` }}>
+            <button
+              onClick={onClose}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all"
+              style={{ background: C.surface2, color: C.textDim, boxShadow: ELEV.highlight }}
+              onMouseEnter={e => { e.currentTarget.style.color = C.accent; e.currentTarget.style.background = C.accentSoft; }}
+              onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.background = C.surface2; }}
+              title="Volver a la biblioteca"
+            >
+              <ArrowLeft size={14} strokeWidth={2.3} />
+              <span className="text-[12px] font-bold" style={{ fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>Volver</span>
+            </button>
+            <span className="text-[10.5px] font-black truncate" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{d.id}</span>
+            <button
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/5 shrink-0"
+            >
+              <X size={16} style={{ color: C.textDim }} />
+            </button>
           </div>
           {/* Scrollable body */}
           <div className="overflow-y-auto px-6 py-5 space-y-5" style={{ minHeight: 0 }}>
 
         {/* Hero — square frame, image contained without stretching */}
-        <div onClick={isImg ? () => setLightbox(d.archivo) : undefined}
+        <div onClick={isImg ? openLightbox : undefined}
           className="rounded-2xl overflow-hidden flex items-center justify-center relative group mx-auto"
           style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})`, border: `1px solid ${C.border}`, aspectRatio: "1/1", maxWidth: 360, width: "100%", cursor: isImg ? "zoom-in" : "default" }}
         >
@@ -2298,7 +2599,7 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
         </div>
 
         <div>
-          <div className="text-[21px] font-black leading-tight" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>{d.nombre}</div>
+          <div className="text-[21px] font-black leading-tight" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif" }}>{d.nombre}</div>
           <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>{d.cliente} · {d.tipoPrenda || "Camiseta"}</div>
         </div>
 
@@ -2311,7 +2612,7 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
           <div>
             <SectionLabel>Archivo adjunto</SectionLabel>
             <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-              {isImg ? <button onClick={() => setLightbox(d.archivo)} className="w-12 h-12 rounded-lg overflow-hidden shrink-0 hover:opacity-80 transition-opacity" style={{ border: `1px solid ${C.border}` }}><img src={d.archivo.dataUrl} alt="" className="w-full h-full object-cover" /></button>
+              {isImg ? <button onClick={openLightbox} className="w-12 h-12 rounded-lg overflow-hidden shrink-0 hover:opacity-80 transition-opacity" style={{ border: `1px solid ${C.border}` }}><img src={d.archivo.dataUrl} alt="" className="w-full h-full object-cover" /></button>
                 : <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: C.surface3, color: C.accent }}><FileText size={20} /></div>}
               <div className="flex-1 min-w-0">
                 <div className="text-[12.5px] font-semibold truncate" style={{ color: C.text }}>{d.archivo.name}</div>
@@ -2353,7 +2654,7 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
           </div>
         </div>
       </div>
-      {lightbox && <Lightbox archivo={lightbox} onClose={() => setLightbox(null)} />}
+      {lightbox && <Lightbox archivos={allArchivos} initialIndex={initialLightboxIndex} onClose={() => setLightbox(null)} />}
     </>
   );
 };
@@ -2376,7 +2677,7 @@ const Disenos = ({ designs, setDesigns, customers, orders, pendingDesignView, cl
   const filtered = (filtro === "todos" ? designs : designs.filter(d => d.estado === filtro)).filter(matchSearch);
 
   return (
-    <div className="px-8 py-6">
+    <div className="px-4 md:px-8 py-4 md:py-6">
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="px-3 py-1.5 rounded-xl flex items-center gap-2" style={{ background: C.accentSoft, border: `1px solid ${C.accent}33` }}>
@@ -2405,10 +2706,14 @@ const Disenos = ({ designs, setDesigns, customers, orders, pendingDesignView, cl
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map(d => {
             const cfg = estadoDiseno[d.estado] || estadoDiseno.en_proceso;
+            const hasImg = d.archivo?.type?.startsWith("image/") && d.archivo?.dataUrl;
             return (
               <div key={d.id} className="rounded-2xl overflow-hidden transition-all duration-150 hover:-translate-y-0.5 cursor-pointer" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                <div onClick={() => setSelected(d)} className="relative flex items-center justify-center overflow-hidden" style={{ height: 180, background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
-                  <div className="w-28 h-28"><JerseyMockup colors={d.colores} tipoPrenda={d.tipoPrenda} /></div>
+                <div onClick={() => setSelected(d)} className="relative flex items-center justify-center overflow-hidden" style={{ height: 180, background: hasImg ? "#0a0a0a" : `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
+                  {hasImg
+                    ? <img src={d.archivo.dataUrl} alt={d.nombre || ""} className="w-full h-full object-contain" style={{ padding: 8 }} draggable={false} />
+                    : <div className="w-28 h-28"><JerseyMockup colors={d.colores} tipoPrenda={d.tipoPrenda} /></div>
+                  }
                   <div className="absolute top-2.5 right-2.5"><Badge dot color={cfg.color} bg={cfg.bg}>{cfg.label}</Badge></div>
                   <div className="absolute bottom-2.5 left-2.5 flex gap-1">{d.colores?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: "1px solid rgba(0,0,0,0.4)" }} />)}</div>
                   {d.pedidoVinculado && <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[9px] font-black flex items-center gap-1" style={{ background: "rgba(0,0,0,0.8)", color: C.text, fontFamily: "'JetBrains Mono', monospace" }}><Package size={8} /> {d.pedidoVinculado}</div>}
@@ -2451,14 +2756,14 @@ const Entregas = ({ orders, searchQuery = "" }) => {
     (o.delegado && o.delegado.toLowerCase().includes(q));
   const pendientes = orders.filter(o => ["aprobacion", "produccion"].includes(o.estado)).filter(matchSearch).sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega));
   const entregados = orders.filter(o => o.estado === "entrega").filter(matchSearch).slice(0, 5);
-  const totalPendiente = pendientes.reduce((a, b) => a + b.saldo, 0);
+  const atrasados = pendientes.filter(o => daysDiff(o.fechaEntrega) < 0).length;
 
   return (
-    <div className="px-8 py-6 space-y-4">
+    <div className="px-4 md:px-8 py-4 md:py-6 space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <StatChip label="Por entregar" value={pendientes.length} icon={Package} />
-        <StatChip label="Saldo pendiente" value={ARS(totalPendiente)} color={C.warn} icon={DollarSign} />
+        <StatChip label="Atrasados" value={atrasados} color={atrasados > 0 ? C.danger : C.textMute} icon={AlertTriangle} />
         <StatChip label="Entregados" value={entregados.length} color={C.ok} icon={CheckCircle2} accent />
       </div>
 
@@ -2486,7 +2791,7 @@ const Entregas = ({ orders, searchQuery = "" }) => {
                     <div className="text-[11px]" style={{ color: C.textDim }}>{o.produtos?.map(p => p.tipo).join(" · ") || o.productos?.map(p => p.tipo).join(" · ")}{o.delegado ? ` · ${o.delegado}` : ""}</div>
                   </div>
                   <div className="text-right shrink-0 space-y-1.5">
-                    <div className="text-[11.5px] font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>{ARS(o.total)}</div>
+                    <div className="text-[11.5px] font-black" style={{ color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>{(o.productos || []).reduce((s, p) => s + (Number(p.cantidad) || 0), 0)} u.</div>
                     {o.whatsapp
                       ? <a href={`https://wa.me/${o.whatsapp}?text=${encodeURIComponent(`Hola! Tu pedido ${o.id} está listo para retirar 👕`)}`} target="_blank" rel="noreferrer"><Btn size="sm" icon={MessageCircle}>Avisar</Btn></a>
                       : <Btn size="sm" icon={MessageCircle} disabled>Sin WP</Btn>}
@@ -2508,7 +2813,7 @@ const Entregas = ({ orders, searchQuery = "" }) => {
                 <div className="text-[13px] font-semibold" style={{ color: C.text }}>{o.cliente}</div>
                 <div className="text-[10.5px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{o.id} · {o.fechaEntrega}</div>
               </div>
-              <div className="text-[12.5px] font-black" style={{ color: C.ok, fontFamily: "'JetBrains Mono', monospace" }}>{ARS(o.total)}</div>
+              <div className="text-[12.5px] font-black" style={{ color: C.ok, fontFamily: "'JetBrains Mono', monospace" }}>{(o.productos || []).reduce((s, p) => s + (Number(p.cantidad) || 0), 0)} u.</div>
             </div>
           ))}
         </div>
@@ -2530,32 +2835,44 @@ const downloadPlanillaPNG = (order, empresa) => {
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
   const ec = empresa?.color || "#5EA9E8";
   ctx.fillStyle = ec; ctx.fillRect(0, 0, W, 5);
-  ctx.fillStyle = "#0a0a0a"; ctx.font = "900 26px 'Barlow Condensed',Arial,sans-serif"; ctx.fillText("LP SPORT", pad, pad + 20);
+  ctx.fillStyle = "#0a0a0a"; ctx.font = "900 26px 'D-DIN Expanded',Arial,sans-serif"; ctx.fillText("LP SPORT", pad, pad + 20);
   ctx.fillStyle = ec; ctx.font = "700 11px Arial,sans-serif"; ctx.fillText("LP SPORT · PLANILLA DE PEDIDO", pad + ctx.measureText("LP SPORT").width + 14, pad + 18);
   ctx.fillStyle = "#0a0a0a"; ctx.font = "700 22px Arial,sans-serif"; ctx.fillText(order.cliente, pad, pad + 60);
   ctx.fillStyle = "#6b7280"; ctx.font = "500 12px 'Courier New',monospace"; ctx.fillText(`${order.id} · entrega ${order.fechaEntrega} · ${roster.length} filas`, pad, pad + 82);
   ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad, pad + hH - 12); ctx.lineTo(W - pad, pad + hH - 12); ctx.stroke();
-  const cols = [{ key: "idx", label: "#", x: pad + 4, align: "left", w: 28 }, { key: "nombre", label: "NOMBRE", x: pad + 36, align: "left", w: 280 }, { key: "talle", label: "TALLE", x: pad + 336, align: "center", w: 70 }, { key: "cantidad", label: "CANT", x: pad + 426, align: "center", w: 60 }, { key: "adicionales", label: "ADICIONALES", x: pad + 506, align: "left", w: 270 }, { key: "total", label: "TOTAL", x: W - pad - 8, align: "right", w: 110 }];
+  const cols = [
+    { key: "idx",      label: "#",        x: pad + 4,   align: "left",   w: 28 },
+    { key: "nombre",   label: "NOMBRE",   x: pad + 36,  align: "left",   w: 460 },
+    { key: "camiseta", label: "CAMISETA", x: pad + 510, align: "center", w: 130 },
+    { key: "short",    label: "SHORT",    x: pad + 650, align: "center", w: 110 },
+    { key: "talle",    label: "TALLE",    x: pad + 780, align: "center", w: 110 }
+  ];
   let y = pad + hH;
   ctx.fillStyle = "#f3f4f6"; ctx.fillRect(pad, y, W - 2 * pad, thH);
   ctx.fillStyle = "#9ca3af"; ctx.font = "700 9.5px Arial,sans-serif";
-  cols.forEach(c => { ctx.textAlign = c.align; ctx.fillText(c.label, c.x, y + 26); }); ctx.textAlign = "left"; y += thH;
-  let sum = 0, units = 0;
+  cols.forEach(c => { ctx.textAlign = c.align; const lx = c.align === "center" ? c.x + c.w / 2 : c.x; ctx.fillText(c.label, lx, y + 26); }); ctx.textAlign = "left"; y += thH;
+  let camis = 0, shorts = 0;
   roster.forEach((r, i) => {
     if (i % 2) { ctx.fillStyle = "#fafafa"; ctx.fillRect(pad, y, W - 2 * pad, rH); }
     ctx.strokeStyle = "#f1f5f9"; ctx.beginPath(); ctx.moveTo(pad, y + rH); ctx.lineTo(W - pad, y + rH); ctx.stroke();
     ctx.fillStyle = "#9ca3af"; ctx.font = "600 10px 'Courier New',monospace"; ctx.textAlign = "left"; ctx.fillText(String(i + 1).padStart(2, "0"), cols[0].x, y + 23);
-    ctx.fillStyle = "#0a0a0a"; ctx.font = "500 13px Arial,sans-serif"; const nm = (r.nombre || "—").slice(0, 38); ctx.fillText(nm + (r.nombre?.length > 38 ? "…" : ""), cols[1].x, y + 23);
-    ctx.fillStyle = r.talle ? ec : "#9ca3af"; ctx.font = "700 12px 'Courier New',monospace"; ctx.textAlign = "center"; ctx.fillText(r.talle || "—", cols[2].x + 35, y + 23);
-    ctx.fillStyle = "#0a0a0a"; ctx.fillText(String(r.cantidad ?? 1), cols[3].x + 30, y + 23); units += Number(r.cantidad) || 0;
-    ctx.fillStyle = r.adicionales ? "#374151" : "#9ca3af"; ctx.font = "400 12px Arial,sans-serif"; ctx.textAlign = "left"; ctx.fillText((r.adicionales || "—").slice(0, 35), cols[4].x, y + 23);
-    const t = Number(r.total) || 0; sum += t; ctx.fillStyle = t > 0 ? "#0a0a0a" : "#9ca3af"; ctx.font = "600 12px 'Courier New',monospace"; ctx.textAlign = "right"; ctx.fillText(t > 0 ? `$${t.toLocaleString("es-AR")}` : "—", cols[5].x, y + 23);
+    ctx.fillStyle = "#0a0a0a"; ctx.font = "500 13px Arial,sans-serif"; const nm = (r.nombre || "—").slice(0, 50); ctx.fillText(nm + (r.nombre?.length > 50 ? "…" : ""), cols[1].x, y + 23);
+    const cVal = Number(r.camiseta) || 0;
+    ctx.fillStyle = cVal > 0 ? "#0a0a0a" : "#9ca3af"; ctx.font = "700 13px 'Courier New',monospace"; ctx.textAlign = "center"; ctx.fillText(cVal > 0 ? String(cVal) : "—", cols[2].x + cols[2].w / 2, y + 23);
+    const sVal = Number(r.short) || 0;
+    ctx.fillStyle = sVal > 0 ? "#0a0a0a" : "#9ca3af"; ctx.fillText(sVal > 0 ? String(sVal) : "—", cols[3].x + cols[3].w / 2, y + 23);
+    ctx.fillStyle = r.talle ? ec : "#9ca3af"; ctx.font = "700 13px 'Courier New',monospace"; ctx.fillText(r.talle || "—", cols[4].x + cols[4].w / 2, y + 23);
+    camis += cVal; shorts += sVal;
     y += rH;
   });
   ctx.textAlign = "left"; ctx.strokeStyle = "#e5e7eb"; ctx.beginPath(); ctx.rect(pad, pad + hH, W - 2 * pad, y - (pad + hH)); ctx.stroke();
   y += 22;
-  if (sum > 0) { ctx.fillStyle = "#0a0a0a"; ctx.font = "700 13px Arial,sans-serif"; ctx.textAlign = "right"; ctx.fillText(`Total: $${sum.toLocaleString("es-AR")}`, W - pad, y + 6); }
-  ctx.fillStyle = "#9ca3af"; ctx.font = "400 10px 'Courier New',monospace"; ctx.textAlign = "left"; ctx.fillText(`${units} unidades · ${new Date().toLocaleDateString("es-AR")} · LP SPORT`, pad, y + 28);
+  ctx.fillStyle = "#0a0a0a"; ctx.font = "700 13px Arial,sans-serif"; ctx.textAlign = "right";
+  const summary = [];
+  if (camis > 0) summary.push(`${camis} ${camis === 1 ? "camiseta" : "camisetas"}`);
+  if (shorts > 0) summary.push(`${shorts} ${shorts === 1 ? "short" : "shorts"}`);
+  if (summary.length) ctx.fillText(summary.join("  ·  "), W - pad, y + 6);
+  ctx.fillStyle = "#9ca3af"; ctx.font = "400 10px 'Courier New',monospace"; ctx.textAlign = "left"; ctx.fillText(`${new Date().toLocaleDateString("es-AR")} · LP SPORT`, pad, y + 28);
   canvas.toBlob(blob => {
     if (!blob) { toast.err("Error al generar la imagen"); return; }
     const url = URL.createObjectURL(blob);
@@ -2589,7 +2906,7 @@ const PlanillaPastePanel = ({ onApply, onAddFile, onCollapse, canCollapse }) => 
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.accentSoft, color: C.accent, boxShadow: ELEV.highlight }}><ClipboardPaste size={15} /></div>
           <div>
-            <div className="text-[14px] font-semibold tracking-tight" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>Importar lista del cliente</div>
+            <div className="text-[14px] font-semibold tracking-tight" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>Importar lista del cliente</div>
             <div className="text-[11.5px]" style={{ color: C.textDim }}>Pegá el mensaje, subí un archivo, o agregalas a mano.</div>
           </div>
         </div>
@@ -2611,7 +2928,7 @@ const PlanillaPastePanel = ({ onApply, onAddFile, onCollapse, canCollapse }) => 
         {showExample && (
           <div className="mt-2 p-3 rounded-xl text-[12.5px]" style={{ background: C.surface2, color: C.textDim, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6, boxShadow: ELEV.highlight }}>
             <span style={{ color: C.text }}>Juan Pérez M 10 capitán</span>
-            <div className="text-[11px] mt-2" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif" }}>El parser detecta nombre, talle, número, cantidad y palabras clave como capitán, arquero, bordado, etc.</div>
+            <div className="text-[11px] mt-2" style={{ color: C.textMute, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>El parser detecta nombre, talle, número, cantidad y palabras clave como capitán, arquero, bordado, etc.</div>
           </div>
         )}
       </div>
@@ -2629,7 +2946,7 @@ const PlanillaPastePanel = ({ onApply, onAddFile, onCollapse, canCollapse }) => 
       >
         <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.surface3, color: C.accent }}><UploadCloud size={15} /></div>
         <div className="text-left flex-1">
-          <div className="text-[12.5px] font-semibold" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>Subir archivo de la lista</div>
+          <div className="text-[12.5px] font-semibold" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>Subir archivo de la lista</div>
           <div className="text-[10.5px]" style={{ color: C.textMute }}>PDF · Imagen · documento de Word — se adjunta como referencia</div>
         </div>
         <input ref={fileRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.txt,.csv,.xlsx" onChange={handleFile} />
@@ -2637,7 +2954,7 @@ const PlanillaPastePanel = ({ onApply, onAddFile, onCollapse, canCollapse }) => 
 
       {text.trim() && (
         <div className="mt-3">
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: parsed.length ? C.accent : C.textMute, fontFamily: "'Barlow', sans-serif" }}>
+          <div className="text-[10.5px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: parsed.length ? C.accent : C.textMute, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>
             {parsed.length ? `${parsed.length} ${parsed.length === 1 ? "fila detectada" : "filas detectadas"}` : "Sin filas detectadas"}
           </div>
           {parsed.length === 0
@@ -2646,15 +2963,15 @@ const PlanillaPastePanel = ({ onApply, onAddFile, onCollapse, canCollapse }) => 
               <div className="rounded-xl overflow-hidden max-h-52 overflow-y-auto" style={{ background: C.surface2, boxShadow: ELEV.highlight }}>
                 <table className="w-full text-[12.5px]" style={PREMIUM_FONT}>
                   <thead style={{ background: "rgba(255,255,255,0.02)", position: "sticky", top: 0 }}>
-                    <tr>{["Nombre", "Talle", "Cant", "Adicionales"].map(h => <th key={h} className="text-left text-[10px] font-bold uppercase tracking-[0.16em] px-3 py-2" style={{ color: C.textMute, fontFamily: "'Barlow', sans-serif" }}>{h}</th>)}</tr>
+                    <tr>{["Nombre", "Talle", "Cant", "Adicionales"].map(h => <th key={h} className="text-left text-[10px] font-bold uppercase tracking-[0.16em] px-3 py-2" style={{ color: C.textMute, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {parsed.map((r, i) => (
                       <tr key={r.id} style={{ borderTop: i > 0 ? `1px solid ${C.border}` : "none" }}>
-                        <td className="px-3 py-2" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>{r.nombre || <span style={{ color: C.textMute }}>(sin nombre)</span>}</td>
+                        <td className="px-3 py-2" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>{r.nombre || <span style={{ color: C.textMute }}>(sin nombre)</span>}</td>
                         <td className="text-center px-3 py-2 font-bold" style={{ color: r.talle ? C.accent : C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{r.talle || "—"}</td>
                         <td className="text-right px-3 py-2" style={{ color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{r.cantidad}</td>
-                        <td className="px-3 py-2 text-[11px]" style={{ color: C.textDim, fontFamily: "'Barlow', sans-serif" }}>{r.adicionales || "—"}</td>
+                        <td className="px-3 py-2 text-[11px]" style={{ color: C.textDim, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>{r.adicionales || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2680,15 +2997,19 @@ const PlanillaEditor = ({ order, empresa, onBack, onUpdate }) => {
   const attachedFiles = order.archivosPlanilla || [];
   const [showPaste, setShowPaste] = useState(roster.length === 0 && attachedFiles.length === 0);
   const [lightbox, setLightbox] = useState(null);
-  const totalUnidades = roster.reduce((a, b) => a + (Number(b.cantidad) || 0), 0);
-  const totalMoney = roster.reduce((a, b) => a + (Number(b.total) || 0), 0);
+  const totalCamisetas = roster.reduce((a, b) => a + (Number(b.camiseta) || 0), 0);
+  const totalShorts    = roster.reduce((a, b) => a + (Number(b.short)    || 0), 0);
 
   const updateRoster = (newRoster) => onUpdate({ ...order, roster: newRoster });
   const addFile = (file) => onUpdate({ ...order, archivosPlanilla: [...attachedFiles, file] });
   const removeFile = (idx) => onUpdate({ ...order, archivosPlanilla: attachedFiles.filter((_, i) => i !== idx) });
 
+  const summaryParts = [`${roster.length} ${roster.length === 1 ? "fila" : "filas"}`];
+  if (totalCamisetas > 0) summaryParts.push(`${totalCamisetas} ${totalCamisetas === 1 ? "camiseta" : "camisetas"}`);
+  if (totalShorts > 0) summaryParts.push(`${totalShorts} ${totalShorts === 1 ? "short" : "shorts"}`);
+
   return (
-    <div className="px-8 py-6">
+    <div className="px-4 md:px-8 py-4 md:py-6">
       <button onClick={onBack} className="flex items-center gap-1.5 text-[11.5px] mb-4 transition-colors" style={{ color: C.textDim }}
         onMouseEnter={e => e.currentTarget.style.color = C.text} onMouseLeave={e => e.currentTarget.style.color = C.textDim}>
         <ArrowLeft size={13} /> Volver a Planillas
@@ -2700,13 +3021,13 @@ const PlanillaEditor = ({ order, empresa, onBack, onUpdate }) => {
             background: "linear-gradient(135deg, " + (empresa?.color || C.accent) + "33, " + (empresa?.color || C.accent) + "11)",
             color: empresa?.color || C.accent,
             boxShadow: "inset 0 1px 0 0 " + (empresa?.color || C.accent) + "44, 0 0 0 1px " + (empresa?.color || C.accent) + "33",
-            fontFamily: "'Barlow Condensed', sans-serif"
+            fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif"
           }}>{getInitials(order.cliente)}</div>
           <div>
-            <div className="text-[22px] font-bold" style={{ color: C.text, fontFamily: "'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{order.cliente}</div>
+            <div className="text-[22px] font-bold" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif", letterSpacing: "-0.01em" }}>{order.cliente}</div>
             <div className="text-[11px]" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>
               {order.id} · entrega {order.fechaEntrega}
-              {roster.length > 0 && ` · ${roster.length} filas · ${totalUnidades} unid.${totalMoney > 0 ? ` · ${ARS(totalMoney)}` : ""}`}
+              {roster.length > 0 && ` · ${summaryParts.join(" · ")}`}
             </div>
           </div>
         </div>
@@ -2757,7 +3078,7 @@ const PlanillaEditor = ({ order, empresa, onBack, onUpdate }) => {
       {roster.length === 0 && !showPaste ? (
         <Card className="p-14 text-center">
           <ClipboardList size={28} className="mx-auto mb-3" style={{ color: C.textMute }} />
-          <div className="text-[15px] font-bold mb-1" style={{ color: C.text, fontFamily: "'Barlow', sans-serif" }}>Planilla vacía</div>
+          <div className="text-[15px] font-bold mb-1" style={{ color: C.text, fontFamily: "'D-DIN Expanded', 'Barlow', sans-serif" }}>Planilla vacía</div>
           <div className="text-[12.5px] mb-4" style={{ color: C.textDim }}>Pegá el mensaje del cliente, subí un archivo, o agregá filas a mano.</div>
           <Btn variant="primary" icon={ClipboardPaste} onClick={() => setShowPaste(true)}>Importar lista</Btn>
         </Card>
@@ -2778,7 +3099,7 @@ const PlanillasList = ({ orders, empresas, onSelect, searchQuery = "" }) => {
     .filter(o => o.roster?.length > 0)
     .filter(o => !q || (o.id && o.id.toLowerCase().includes(q)) || (o.cliente && o.cliente.toLowerCase().includes(q)));
   if (!planillas.length) return (
-    <div className="px-8 py-6">
+    <div className="px-4 md:px-8 py-4 md:py-6">
       <Card className="p-14 text-center">
         <ClipboardList size={32} className="mx-auto mb-4" style={{ color: C.textMute }} />
         <div className="text-[15px] font-bold mb-1.5" style={{ color: C.text }}>{q ? `Sin planillas para "${searchQuery}"` : "Todavía no hay planillas armadas"}</div>
@@ -2789,11 +3110,11 @@ const PlanillasList = ({ orders, empresas, onSelect, searchQuery = "" }) => {
     </div>
   );
   return (
-    <div className="px-8 py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="px-4 md:px-8 py-4 md:py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {planillas.map(o => {
         const empresa = empresas.find(e => e.nombre === o.cliente);
-        const totalUnid = o.roster.reduce((a, b) => a + (Number(b.cantidad) || 0), 0);
-        const totalMoney = o.roster.reduce((a, b) => a + (Number(b.total) || 0), 0);
+        const totalCamisetas = o.roster.reduce((a, b) => a + (Number(b.camiseta) || 0), 0);
+        const totalShorts    = o.roster.reduce((a, b) => a + (Number(b.short) || 0), 0);
         const ec = empresa?.color || C.accent;
         return (
           <Tilt3D key={o.id} intensity={4} onClick={() => onSelect(o.id)} className="cursor-pointer">
@@ -2811,7 +3132,7 @@ const PlanillasList = ({ orders, empresas, onSelect, searchQuery = "" }) => {
                   background: "linear-gradient(135deg, " + ec + "33 0%, " + ec + "11 100%)",
                   color: ec,
                   boxShadow: "inset 0 1px 0 0 " + ec + "44, 0 0 0 1px " + ec + "33",
-                  fontFamily: "'Barlow Condensed', sans-serif"
+                  fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif"
                 }}>{getInitials(o.cliente)}</div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13.5px] font-bold truncate" style={{ color: C.text, letterSpacing: "-0.01em" }}>{o.cliente}</div>
@@ -2821,12 +3142,12 @@ const PlanillasList = ({ orders, empresas, onSelect, searchQuery = "" }) => {
               {o.productos?.length > 0 && <div className="text-[11px] mb-3 truncate" style={{ color: C.textDim }}>{o.productos.map(p => p.tipo).join(" · ")}</div>}
               <div className="flex items-end justify-between pt-3" style={{ borderTop: `1px solid ${C.border}` }}>
                 <div>
-                  <div className="text-[24px] font-black leading-none" style={{ color: ec, fontFamily: "'Barlow Condensed', sans-serif", ...PREMIUM_FONT }}>{o.roster.length}</div>
+                  <div className="text-[24px] font-black leading-none" style={{ color: ec, fontFamily: "'D-DIN Expanded', 'Barlow Condensed', sans-serif", ...PREMIUM_FONT }}>{o.roster.length}</div>
                   <div className="text-[9px] uppercase tracking-[0.2em] mt-1 font-bold" style={{ color: C.textMute }}>filas</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[12.5px] font-bold" style={{ color: C.text, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{totalUnid} unid.</div>
-                  {totalMoney > 0 && <div className="text-[10.5px] mt-0.5" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{ARS(totalMoney)}</div>}
+                  {totalCamisetas > 0 && <div className="text-[12.5px] font-bold" style={{ color: C.text, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{totalCamisetas} {totalCamisetas === 1 ? "camiseta" : "camisetas"}</div>}
+                  {totalShorts > 0 && <div className="text-[10.5px] mt-0.5" style={{ color: C.textDim, fontFamily: "'JetBrains Mono', monospace", ...PREMIUM_FONT }}>{totalShorts} {totalShorts === 1 ? "short" : "shorts"}</div>}
                 </div>
               </div>
             </div>
@@ -2851,14 +3172,411 @@ const Planillas = ({ orders, setOrders, empresas, pendingPlanillaOrderId, clearP
 };
 
 // ── ROOT APP ─────────────────────────────────────────────────────
+
+// ── v10: ConnectionBadge ────────────────────────────────────────
+const ConnectionBadge = () => {
+  const mode = useStorageMode();
+  const cfg = {
+    api:      { label: "Sincronizado", color: C.ok,      icon: Wifi,    dot: C.ok },
+    login:    { label: "Hace falta login", color: C.warn, icon: WifiOff, dot: C.warn },
+    local:    { label: "Solo local",   color: C.textMute, icon: WifiOff, dot: C.textMute },
+    checking: { label: "Verificando…", color: C.textDim, icon: Wifi,    dot: C.textDim },
+  }[mode] || { label: "—", color: C.textDim, icon: Wifi, dot: C.textDim };
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold"
+      style={{ background: "rgba(255,255,255,0.03)", color: cfg.color, border: `1px solid ${C.border}`, fontFamily: "'D-DIN Expanded','Barlow',sans-serif" }}
+      title={`Modo: ${mode}`}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: cfg.dot, boxShadow: `0 0 6px ${cfg.dot}88` }} />
+      {cfg.label}
+    </div>
+  );
+};
+
+// ── v10: Dashboard (Inicio) ─────────────────────────────────────
+// Single panoramic view designed to answer "qué tengo que hacer hoy".
+// KPIs + próximas entregas + atrasados + actividad reciente. Cero scrolls horizontales,
+// todo encima del fold a 1280px.
+const Dashboard = ({ orders, designs, customers, onOpenOrder, onOpenDesign, onSetPage }) => {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const activity = useActivityLog(15, refreshKey);
+  // Refresh activity every 30s so a second device's actions show up
+  useEffect(() => { const t = setInterval(() => setRefreshKey(k => k + 1), 30000); return () => clearInterval(t); }, []);
+
+  const visibleOrders = useMemo(() => orders.filter(o => o.estado !== "archivado"), [orders]);
+  const activos = visibleOrders.filter(o => o.estado !== "entrega");
+  const atrasados = activos.filter(o => daysDiff(o.fechaEntrega) < 0);
+  const proximos = activos.filter(o => { const d = daysDiff(o.fechaEntrega); return d >= 0 && d <= 7; }).sort((a, b) => daysDiff(a.fechaEntrega) - daysDiff(b.fechaEntrega));
+  const ahora = new Date();
+  const thisMonth = orders.filter(o => { const d = new Date(o.fechaPedido); return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear(); });
+  const last30dEntregas = orders.filter(o => o.estado === "entrega" && daysDiff(o.fechaEntrega) >= -30 && daysDiff(o.fechaEntrega) <= 0);
+
+  const kpis = [
+    { label: "Activos",       value: activos.length,         icon: Package,    color: C.accent, sub: `de ${visibleOrders.length} pedidos`,           onClick: () => onSetPage("pedidos") },
+    { label: "Atrasados",     value: atrasados.length,       icon: AlertTriangle, color: C.danger, sub: atrasados.length === 0 ? "todo al día" : "necesitan acción ya", onClick: () => onSetPage("entregas") },
+    { label: "Este mes",      value: thisMonth.length,       icon: TrendingUp, color: "#a855f7", sub: "pedidos nuevos",                                  onClick: () => onSetPage("pedidos") },
+    { label: "Entregados 30d", value: last30dEntregas.length, icon: CheckCircle2, color: C.ok,    sub: "últimos 30 días",                                 onClick: () => onSetPage("entregas") },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider" style={{ background: C.accentSoft, color: C.accent, border: `1px solid ${C.accent}33`, fontFamily: "'D-DIN Expanded','Barlow',sans-serif" }}>
+            <Sparkles size={12} strokeWidth={2.5} />
+            INICIO · v11
+          </div>
+          <div className="text-[11px] mt-2" style={{ color: C.textDim }}>Resumen de tu día — actualizado en vivo</div>
+        </div>
+        <ConnectionBadge />
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpis.map((k, i) => {
+          const Icon = k.icon;
+          return (
+            <button key={i} onClick={k.onClick}
+              className="text-left p-4 rounded-2xl transition-all hover:-translate-y-0.5"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, boxShadow: ELEV.highlight }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = k.color + "55"}
+              onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+            >
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: k.color + "22", color: k.color }}><Icon size={16} strokeWidth={2.2} /></div>
+                <ChevronRight size={14} style={{ color: C.textMute }} />
+              </div>
+              <div className="text-[28px] font-black leading-none" style={{ color: k.color, fontFamily: "'D-DIN Expanded','Barlow',sans-serif" }}>{k.value}</div>
+              <div className="text-[11px] font-bold mt-1.5 uppercase tracking-wider" style={{ color: C.text }}>{k.label}</div>
+              <div className="text-[10px] mt-0.5" style={{ color: C.textMute }}>{k.sub}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Two columns: Próximas entregas + Atrasados */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <DashSection title="Próximas entregas" icon={Clock} count={proximos.length} accent={C.accent}>
+          {proximos.length === 0
+            ? <Empty>Nada para los próximos 7 días</Empty>
+            : proximos.slice(0, 5).map(o => (
+              <DashRow key={o.id} order={o} onClick={() => onOpenOrder(o)} />
+            ))
+          }
+        </DashSection>
+
+        <DashSection title="Atrasados" icon={AlertTriangle} count={atrasados.length} accent={atrasados.length ? C.danger : C.ok}>
+          {atrasados.length === 0
+            ? <Empty>Sin pedidos vencidos</Empty>
+            : atrasados.slice(0, 5).map(o => (
+              <DashRow key={o.id} order={o} onClick={() => onOpenOrder(o)} highlight />
+            ))
+          }
+        </DashSection>
+      </div>
+
+      {/* Activity feed (only when connected to server) */}
+      <DashSection title="Actividad reciente" icon={Activity} count={activity.length} accent={C.textDim}>
+        {activity.length === 0
+          ? <Empty>Los movimientos van a aparecer acá cuando estés sincronizado al servidor</Empty>
+          : (
+            <div className="space-y-1.5">
+              {activity.slice(0, 10).map(e => (
+                <button key={e.id}
+                  onClick={() => {
+                    if (!e.orderId) return;
+                    const o = orders.find(x => x.id === e.orderId);
+                    if (o) onOpenOrder(o);
+                  }}
+                  disabled={!e.orderId}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                  style={{ cursor: e.orderId ? "pointer" : "default" }}
+                >
+                  <span className="text-[10px] font-bold uppercase shrink-0 px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.04)", color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{e.type.split(".")[0]}</span>
+                  <span className="text-[12px] truncate flex-1" style={{ color: C.text }}>{e.message}</span>
+                  <span className="text-[10px] shrink-0" style={{ color: C.textMute }}>{fmtRelative(e.timestamp)}</span>
+                </button>
+              ))}
+            </div>
+          )
+        }
+      </DashSection>
+    </div>
+  );
+};
+
+const DashSection = ({ title, icon: Icon, count, accent, children }) => (
+  <div className="rounded-2xl p-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2">
+        <Icon size={14} style={{ color: accent }} strokeWidth={2.2} />
+        <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: C.text, fontFamily: "'D-DIN Expanded','Barlow',sans-serif" }}>{title}</span>
+      </div>
+      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: accent + "22", color: accent }}>{count}</span>
+    </div>
+    {children}
+  </div>
+);
+
+const DashRow = ({ order, onClick, highlight }) => {
+  const d = daysDiff(order.fechaEntrega);
+  const dateLabel = d === 0 ? "hoy" : d < 0 ? `${Math.abs(d)} días atraso` : d === 1 ? "mañana" : `en ${d} días`;
+  const dateColor = d < 0 ? C.danger : d <= 2 ? C.warn : C.textDim;
+  const cfg = estadoConfig[order.estado] || estadoConfig.diseno;
+  const unidades = (order.roster || []).reduce((s, r) => s + (r.camiseta || 0) + (r.short || 0), 0);
+  return (
+    <button onClick={onClick}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors hover:bg-white/5"
+      style={{ border: highlight ? `1px solid ${C.danger}33` : "1px solid transparent" }}
+    >
+      <span className="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0" style={{ background: cfg.bg, color: cfg.color, fontFamily: "'JetBrains Mono',monospace" }}>{order.id.split("-").pop()}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[12.5px] font-semibold truncate" style={{ color: C.text }}>{order.cliente}</div>
+        <div className="text-[10px] truncate" style={{ color: C.textMute }}>{cfg.label} · {unidades || "sin"} unidades</div>
+      </div>
+      <div className="text-right shrink-0">
+        <div className="text-[10.5px] font-bold" style={{ color: dateColor, fontFamily: "'D-DIN Expanded','Barlow',sans-serif" }}>{dateLabel}</div>
+        <div className="text-[9px]" style={{ color: C.textMute, fontFamily: "'JetBrains Mono',monospace" }}>{order.fechaEntrega}</div>
+      </div>
+      <ChevronRight size={14} style={{ color: C.textMute }} />
+    </button>
+  );
+};
+
+const Empty = ({ children }) => (
+  <div className="px-3 py-5 text-center text-[11.5px]" style={{ color: C.textMute, background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>{children}</div>
+);
+
+// ── v10: CommandPalette (Cmd/Ctrl+K) ────────────────────────────
+// Global fuzzy search over orders, designs, customers, empresas. Opens with Cmd+K
+// or Ctrl+K, closes with Esc. ↑↓ to navigate, Enter to jump.
+const CommandPalette = ({ open, onClose, orders, designs, customers, empresas, onOpenOrder, onOpenDesign, onSetPage }) => {
+  const [q, setQ] = useState("");
+  const [activeIdx, setActiveIdx] = useState(0);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) { setQ(""); setActiveIdx(0); return; }
+    // Autofocus on open
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [open]);
+
+  // Build candidates fresh each render based on `q`
+  const results = useMemo(() => {
+    if (!open) return [];
+    const norm = q.trim().toLowerCase();
+    const all = [];
+    // Static pages first
+    if (!norm) {
+      return [
+        { kind: "page", id: "inicio",    label: "Inicio",     hint: "Ir a Inicio",      icon: Home,          action: () => onSetPage("inicio") },
+        { kind: "page", id: "pedidos",   label: "Pedidos",    hint: "Ir a Pedidos",     icon: Package,       action: () => onSetPage("pedidos") },
+        { kind: "page", id: "planillas", label: "Planillas",  hint: "Ir a Planillas",   icon: ClipboardList, action: () => onSetPage("planillas") },
+        { kind: "page", id: "diseno",    label: "LP design",  hint: "Ir a la biblioteca",   icon: Palette,    action: () => onSetPage("diseno") },
+        { kind: "page", id: "entregas",  label: "Entregas",   hint: "Ir a Entregas",    icon: Truck,         action: () => onSetPage("entregas") },
+      ];
+    }
+    // Match orders by id, cliente, observaciones
+    for (const o of orders) {
+      if (o.id.toLowerCase().includes(norm) || o.cliente.toLowerCase().includes(norm) || (o.observaciones || "").toLowerCase().includes(norm)) {
+        all.push({ kind: "order", id: o.id, label: o.id + " · " + o.cliente, hint: estadoConfig[o.estado]?.label || o.estado, icon: Package, action: () => onOpenOrder(o) });
+      }
+    }
+    // Match designs
+    for (const d of designs) {
+      if (d.id.toLowerCase().includes(norm) || (d.nombre || "").toLowerCase().includes(norm) || (d.cliente || "").toLowerCase().includes(norm)) {
+        all.push({ kind: "design", id: d.id, label: d.id + " · " + (d.nombre || d.cliente || ""), hint: "diseño", icon: Palette, action: () => onOpenDesign(d.id) });
+      }
+    }
+    // Match customers / empresas
+    for (const c of customers) {
+      if ((c.equipo || "").toLowerCase().includes(norm) || (c.nombre || "").toLowerCase().includes(norm)) {
+        all.push({ kind: "customer", id: c.id, label: c.equipo || c.nombre, hint: c.nombre || "cliente", icon: Users, action: () => onSetPage("pedidos") });
+      }
+    }
+    for (const e of empresas) {
+      if ((e.nombre || "").toLowerCase().includes(norm)) {
+        all.push({ kind: "empresa", id: e.id, label: e.nombre, hint: "empresa", icon: Building2, action: () => onSetPage("planillas") });
+      }
+    }
+    return all.slice(0, 50);
+  }, [open, q, orders, designs, customers, empresas, onOpenOrder, onOpenDesign, onSetPage]);
+
+  // Keep active index in range
+  useEffect(() => { if (activeIdx >= results.length) setActiveIdx(0); }, [results.length, activeIdx]);
+
+  const onKeyDown = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, results.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      const r = results[activeIdx];
+      if (r) { r.action(); onClose(); }
+    } else if (e.key === "Escape") { e.preventDefault(); onClose(); }
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[80] flex items-start justify-center px-4 pt-[10vh]"
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+      onClick={onClose}
+    >
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-xl rounded-2xl overflow-hidden"
+        style={{ background: C.surface, border: `1px solid ${C.border}`, boxShadow: "0 24px 64px rgba(0,0,0,0.6)" }}
+      >
+        <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: `1px solid ${C.border}` }}>
+          <Search size={16} style={{ color: C.textMute }} />
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={e => { setQ(e.target.value); setActiveIdx(0); }}
+            onKeyDown={onKeyDown}
+            placeholder="Buscar pedido, diseño, cliente o empresa…"
+            className="flex-1 bg-transparent outline-none text-[13px]"
+            style={{ color: C.text, fontFamily: "'D-DIN Expanded','Barlow',sans-serif" }}
+          />
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(255,255,255,0.04)", color: C.textMute, fontFamily: "'JetBrains Mono',monospace" }}>ESC</span>
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto py-1">
+          {results.length === 0
+            ? <div className="px-4 py-8 text-center text-[12px]" style={{ color: C.textMute }}>Sin resultados para "{q}"</div>
+            : results.map((r, i) => {
+              const Icon = r.icon;
+              return (
+                <button key={r.kind + "-" + r.id}
+                  onClick={() => { r.action(); onClose(); }}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
+                  style={{ background: i === activeIdx ? "rgba(94,169,232,0.12)" : "transparent" }}
+                >
+                  <Icon size={14} style={{ color: i === activeIdx ? C.accent : C.textMute }} />
+                  <span className="text-[12.5px] flex-1 truncate" style={{ color: C.text, fontFamily: "'D-DIN Expanded','Barlow',sans-serif" }}>{r.label}</span>
+                  <span className="text-[10px] shrink-0" style={{ color: C.textMute, fontFamily: "'JetBrains Mono',monospace" }}>{r.hint}</span>
+                </button>
+              );
+            })
+          }
+        </div>
+        <div className="flex items-center justify-between px-4 py-2.5 text-[10px]" style={{ borderTop: `1px solid ${C.border}`, color: C.textMute, fontFamily: "'JetBrains Mono',monospace" }}>
+          <span>↑↓ navegar · ↵ abrir</span>
+          <span>Cmd+K para abrir</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ── Admin: user management panel ────────────────────────────────
+const UsuariosAdmin = () => {
+  const [users, setUsers] = useState([]);
+  const [error, setError] = useState("");
+  const [newUser, setNewUser] = useState({ username: "", password: "", role: "empleado" });
+  const [creating, setCreating] = useState(false);
+
+  const load = async () => {
+    try {
+      const r = await fetch("/api/admin/users", { credentials: "include" });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "No se pudo cargar usuarios");
+      const d = await r.json();
+      setUsers(d.users);
+    } catch (e) { setError(e.message || "Error de red"); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const create = async () => {
+    if (!newUser.username || !newUser.password) return;
+    setCreating(true);
+    try {
+      const r = await fetch("/api/admin/users", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newUser)
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "No se pudo crear");
+      setNewUser({ username: "", password: "", role: "empleado" });
+      load();
+    } catch (e) { setError(e.message); } finally { setCreating(false); }
+  };
+
+  const toggle = async (u) => {
+    try {
+      const r = await fetch(`/api/admin/users/${u.id}`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !u.active })
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Error al actualizar");
+      load();
+    } catch (e) { setError(e.message); }
+  };
+
+  const del = async (u) => {
+    if (!confirm(`¿Eliminar usuario "${u.username}"?`)) return;
+    try {
+      const r = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "No se pudo eliminar");
+      load();
+    } catch (e) { setError(e.message); }
+  };
+
+  const inputCls = "px-3 py-2 rounded-xl text-[13px] outline-none w-full";
+  const inputSty = { background: C.surface2, color: C.text, border: `1px solid ${C.border}` };
+
+  return (
+    <div className="p-6 max-w-2xl mx-auto space-y-6">
+      <div className="rounded-2xl p-5 space-y-3" style={{ background: C.surface, boxShadow: ELEV.card }}>
+        <div className="text-[11px] font-black uppercase tracking-[0.16em] mb-3" style={{ color: C.textMute }}>Crear usuario</div>
+        <div className="grid grid-cols-3 gap-3">
+          <input className={inputCls} style={inputSty} placeholder="Usuario" value={newUser.username} onChange={e => setNewUser(p => ({ ...p, username: e.target.value }))} />
+          <input className={inputCls} style={inputSty} placeholder="Contraseña" type="password" value={newUser.password} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))} />
+          <select className={inputCls} style={inputSty} value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}>
+            <option value="empleado">Empleado</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <Btn variant="primary" onClick={create} disabled={creating || !newUser.username || !newUser.password}>
+          {creating ? "Creando…" : "Crear usuario"}
+        </Btn>
+        {error && <div className="text-[11.5px] flex items-center gap-1.5" style={{ color: C.danger }}><AlertTriangle size={11} />{error}</div>}
+      </div>
+
+      <div className="rounded-2xl overflow-hidden" style={{ background: C.surface, boxShadow: ELEV.card }}>
+        <div className="px-5 py-3 text-[11px] font-black uppercase tracking-[0.16em]" style={{ color: C.textMute, borderBottom: `1px solid ${C.border}` }}>Usuarios</div>
+        {users.map(u => (
+          <div key={u.id} className="px-5 py-3 flex items-center gap-3" style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: u.role === "admin" ? C.accentSoft : C.surface3, color: u.role === "admin" ? C.accent : C.textDim }}>
+              {u.username[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold" style={{ color: u.active ? C.text : C.textMute }}>{u.username}</div>
+              <div className="text-[10.5px]" style={{ color: C.textMute }}>{u.role === "admin" ? "Administrador" : "Empleado"} · {u.active ? "Activo" : "Desactivado"}</div>
+            </div>
+            <Btn variant="ghost" onClick={() => toggle(u)} style={{ fontSize: 11 }}>
+              {u.active ? "Desactivar" : "Activar"}
+            </Btn>
+            <Btn variant="ghost" onClick={() => del(u)} style={{ color: C.danger, fontSize: 11 }}>Eliminar</Btn>
+          </div>
+        ))}
+        {users.length === 0 && <div className="px-5 py-4 text-[12px]" style={{ color: C.textMute }}>No hay usuarios aún.</div>}
+      </div>
+    </div>
+  );
+};
+
 function BerastoreSystem() {
-  const [page, setPage] = useState("pedidos");
-  const [orders, setOrders] = usePersistedState("lpsport:orders:v8", seedOrders);
-  const [customers] = usePersistedState("lpsport:customers:v8", seedCustomers);
-  const [designs, setDesigns] = usePersistedState("lpsport:designs:v8", seedDesigns);
-  const [empresas, setEmpresas] = usePersistedState("lpsport:empresas:v8", seedEmpresas);
+  const [page, setPage] = useState("inicio");
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [sidebarMobile, setSidebarMobile] = useState(false); // v11: mobile sidebar drawer
+  const [orders, setOrders] = usePersistedState("lpsport:orders:v10", seedOrders);
+  const [customers] = usePersistedState("lpsport:customers:v10", seedCustomers);
+  const [designs, setDesigns] = usePersistedState("lpsport:designs:v10", seedDesigns);
+  const [empresas, setEmpresas] = usePersistedState("lpsport:empresas:v10", seedEmpresas);
   const [pendingDesignView, setPendingDesignView] = useState(null);
   const [pendingPlanillaOrderId, setPendingPlanillaOrderId] = useState(null);
+  const [pendingOrderView, setPendingOrderView] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
   const mode = useStorageMode();
@@ -2877,15 +3595,19 @@ function BerastoreSystem() {
   // Reset search when switching pages
   useEffect(() => { setSearchQuery(""); }, [page]);
 
-  // Cmd+K / Ctrl+K to focus search
+  // v10: Cmd+K opens the global CommandPalette. / focuses the page search.
   useEffect(() => {
     const onKey = (e) => {
+      const inField = ["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName);
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        searchInputRef.current?.focus();
+        setCommandOpen(true);
       } else if (e.key === "Escape" && document.activeElement === searchInputRef.current) {
         setSearchQuery("");
         searchInputRef.current?.blur();
+      } else if (e.key === "/" && !inField) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -2897,25 +3619,31 @@ function BerastoreSystem() {
 
   const lateCount = orders.filter(o => o.estado !== "entrega" && daysDiff(o.fechaEntrega) < 0).length;
 
-  const currentUser = useCurrentUser();
   const pageTitles = {
+    inicio:   { title: "INICIO",    placeholder: "Cmd+K para buscar globalmente…" },
     pedidos:  { title: "PEDIDOS",   placeholder: "Buscar empresa, pedido, cliente…" },
     planillas:{ title: "PLANILLAS", placeholder: "Buscar planilla…" },
     diseno:   { title: "LP DESIGN", placeholder: "Buscar diseño…" },
     entregas: { title: "ENTREGAS",  placeholder: "Buscar pedido…" },
-    usuarios: { title: "USUARIOS",  placeholder: "Buscar usuario…" }
+    usuarios: { title: "USUARIOS",  placeholder: "Gestión de usuarios…" }
   };
 
   // If the backend says we need to log in, show only the login screen
   if (mode === "login") {
-    return <LoginScreen onLoggedIn={() => { setStorageMode("api"); }} />;
+    return <LoginScreen onLoggedIn={() => {
+      fetch("/api/me", { credentials: "include" })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setCurrentUser({ role: d.role, username: d.username }); })
+        .catch(() => {});
+      setStorageMode("api");
+    }} />;
   }
 
   return (
-    <div className="min-h-screen flex relative" style={{
+    <div className="min-h-screen flex relative overflow-x-hidden" style={{
       background: C.bg,
       color: C.text,
-      fontFamily: "'Barlow', system-ui, sans-serif",
+      fontFamily: "'D-DIN Expanded', 'Barlow', system-ui, sans-serif",
       ...PREMIUM_FONT
     }}>
       {/* Subtle background grid pattern — premium app feel */}
@@ -2970,17 +3698,26 @@ function BerastoreSystem() {
         }
       `}</style>
 
-      <Sidebar page={page} setPage={setPage} orders={orders} empresas={empresas} />
+      <Sidebar page={page} setPage={setPage} orders={orders} empresas={empresas} mobileOpen={sidebarMobile} onCloseMobile={() => setSidebarMobile(false)} />
       <ToastContainer />
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+      <CommandPalette
+        open={commandOpen}
+        onClose={() => setCommandOpen(false)}
+        orders={orders} designs={designs} customers={customers} empresas={empresas}
+        onOpenOrder={o => { setPendingOrderView(o.id); setPage("pedidos"); }}
+        onOpenDesign={id => openDesign(id)}
+        onSetPage={setPage}
+      />
 
-      <main className="flex-1 min-w-0 relative" style={{ zIndex: 1 }}>
+      <main className="flex-1 min-w-0 relative w-full" style={{ zIndex: 1 }}>
         <Topbar
           title={pageTitles[page].title}
           searchValue={searchQuery}
           onSearchChange={e => setSearchQuery(e.target.value)}
           searchRef={searchInputRef}
           searchPlaceholder={pageTitles[page].placeholder}
+          onMenuClick={() => setSidebarMobile(true)}
           action={
             <div className="hidden md:flex items-center gap-1.5">
               <Btn variant="ghost" icon={Download} onClick={() => exportBackup({ orders, customers, designs, empresas })}>Exportar</Btn>
@@ -2997,11 +3734,12 @@ function BerastoreSystem() {
           }
         />
         <div className="fade-in" key={page}>
-          {page === "pedidos"  && <Pedidos orders={orders} setOrders={setOrders} customers={customers} designs={designs} setDesigns={setDesigns} empresas={empresas} setEmpresas={setEmpresas} onViewDesign={openDesign} onOpenPlanilla={openPlanilla} searchQuery={searchQuery} />}
+          {page === "inicio"   && <Dashboard orders={orders} designs={designs} customers={customers} onOpenOrder={o => { setPendingOrderView(o.id); setPage("pedidos"); }} onOpenDesign={id => openDesign(id)} onSetPage={setPage} />}
+          {page === "pedidos"  && <Pedidos orders={orders} setOrders={setOrders} customers={customers} designs={designs} setDesigns={setDesigns} empresas={empresas} setEmpresas={setEmpresas} onViewDesign={openDesign} onOpenPlanilla={openPlanilla} pendingOrderView={pendingOrderView} clearPendingOrderView={() => setPendingOrderView(null)} searchQuery={searchQuery} />}
           {page === "planillas"  && <Planillas orders={orders} setOrders={setOrders} empresas={empresas} pendingPlanillaOrderId={pendingPlanillaOrderId} clearPendingPlanillaOrderId={() => setPendingPlanillaOrderId(null)} searchQuery={searchQuery} />}
           {page === "diseno"   && <Disenos designs={designs} setDesigns={setDesigns} customers={customers} orders={orders} pendingDesignView={pendingDesignView} clearPendingDesignView={() => setPendingDesignView(null)} searchQuery={searchQuery} />}
           {page === "entregas" && <Entregas orders={orders} searchQuery={searchQuery} />}
-          {page === "usuarios" && currentUser?.role === "admin" && <UsuariosAdmin />}
+          {page === "usuarios" && <UsuariosAdmin />}
         </div>
       </main>
     </div>
