@@ -211,6 +211,19 @@ const useStorageMode = () => {
   return m;
 };
 
+// Usuario autenticado actual: { role, username } | null
+let currentUser = null;
+const userListeners = new Set();
+const setCurrentUser = (u) => {
+  currentUser = u;
+  userListeners.forEach(fn => { try { fn(u); } catch {} });
+};
+const useCurrentUser = () => {
+  const [u, set] = useState(currentUser);
+  useEffect(() => { userListeners.add(set); return () => userListeners.delete(set); }, []);
+  return u;
+};
+
 // Detect mode once on app boot.
 const probeApiOnce = (() => {
   let probed = false;
@@ -219,8 +232,11 @@ const probeApiOnce = (() => {
     probed = true;
     try {
       const r = await fetch("/api/me", { credentials: "include" });
-      if (r.ok) setStorageMode("api");
-      else if (r.status === 401) setStorageMode("login");
+      if (r.ok) {
+        const d = await r.json();
+        setCurrentUser({ role: d.role, username: d.username });
+        setStorageMode("api");
+      } else if (r.status === 401) setStorageMode("login");
       else setStorageMode("local");
     } catch {
       setStorageMode("local");
@@ -742,7 +758,7 @@ const ArchivoUpload = ({ archivo, onChange }) => {
 };
 
 // ── Sidebar ──────────────────────────────────────────────────────
-const NAV = [
+const NAV_BASE = [
   { key: "pedidos",  label: "Pedidos",  icon: Package },
   { key: "planillas",  label: "Planillas",  icon: ClipboardList },
   { key: "diseno",   label: "LP design", icon: Palette },
@@ -751,7 +767,12 @@ const NAV = [
 
 const Sidebar = ({ page, setPage, orders, empresas }) => {
   const lateCount = orders.filter(o => o.estado !== "entrega" && daysDiff(o.fechaEntrega) < 0).length;
-  const activeCount = orders.filter(o => o.estado !== "entrega").length;
+  const sidebarUser = useCurrentUser();
+  const sidebarMode = useStorageMode();
+  const nav = [
+    ...NAV_BASE,
+    ...(sidebarUser?.role === "admin" ? [{ key: "usuarios", label: "Usuarios", icon: Users }] : [])
+  ];
 
   return (
     <aside className="w-[220px] shrink-0 flex flex-col h-screen sticky top-0" style={{ background: C.surface, borderRight: `1px solid ${C.border}` }}>
@@ -771,7 +792,7 @@ const Sidebar = ({ page, setPage, orders, empresas }) => {
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         <SectionLabel className="px-3 mb-3">Módulos</SectionLabel>
-        {NAV.map(({ key, label, icon: Icon }) => {
+        {nav.map(({ key, label, icon: Icon }) => {
           const active = page === key;
           const badge = (key === "pedidos" || key === "entregas") && lateCount > 0 ? lateCount : null;
           return (
@@ -810,10 +831,18 @@ const Sidebar = ({ page, setPage, orders, empresas }) => {
 
       <div className="px-4 py-4 flex items-center gap-2.5" style={{ borderTop: `1px solid ${C.border}` }}>
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-          style={{ background: C.gradient, color: "#fff" }}>D</div>
+          style={{ background: C.gradient, color: "#fff" }}>
+          {sidebarMode === "api" && sidebarUser ? (sidebarUser.username[0] || "U").toUpperCase() : "D"}
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[12px] font-semibold truncate" style={{ color: C.text }}>Diseñador</div>
-          <div className="text-[10px] truncate" style={{ color: C.textMute }}>LP Sport · Berazategui</div>
+          <div className="text-[12px] font-semibold truncate" style={{ color: C.text }}>
+            {sidebarMode === "api" && sidebarUser ? sidebarUser.username : "Diseñador"}
+          </div>
+          <div className="text-[10px] truncate" style={{ color: C.textMute }}>
+            {sidebarMode === "api" && sidebarUser
+              ? (sidebarUser.role === "admin" ? "Admin · LP Sport" : "Empleado · LP Sport")
+              : "LP Sport · Berazategui"}
+          </div>
         </div>
         <SidebarFooterAction />
       </div>
@@ -1009,6 +1038,7 @@ const Drawer = ({ onClose, children }) => {
 
 // ── LoginScreen: shown when backend reports 401 ──────────────────
 const LoginScreen = ({ onLoggedIn }) => {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -1025,9 +1055,11 @@ const LoginScreen = ({ onLoggedIn }) => {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ username: username.trim(), password })
       });
       if (r.ok) {
+        const d = await r.json();
+        setCurrentUser({ role: d.role, username: d.username });
         onLoggedIn?.();
       } else {
         const d = await r.json().catch(() => ({}));
@@ -1058,13 +1090,31 @@ const LoginScreen = ({ onLoggedIn }) => {
           boxShadow: ELEV.floating
         }}>
           <div>
-            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
+            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Usuario</div>
             <input
               ref={inputRef}
+              type="text"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(""); }}
+              placeholder="tu usuario"
+              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
+              style={{
+                background: C.surface2,
+                color: C.text,
+                border: `1px solid ${error ? C.danger + "55" : C.border}`,
+                fontFamily: "'JetBrains Mono', monospace",
+                ...PREMIUM_FONT
+              }}
+              autoComplete="username"
+            />
+          </div>
+          <div>
+            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
+            <input
               type="password"
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
-              placeholder="Ingresá tu clave"
+              placeholder="tu contraseña"
               className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
               style={{
                 background: C.surface2,
@@ -1078,7 +1128,7 @@ const LoginScreen = ({ onLoggedIn }) => {
             {error && <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: C.danger }}><AlertTriangle size={11} />{error}</div>}
           </div>
 
-          <Btn variant="primary" onClick={submit} disabled={submitting || !password} className="w-full justify-center">
+          <Btn variant="primary" onClick={submit} disabled={submitting || !username || !password} className="w-full justify-center">
             {submitting ? "Entrando…" : "Entrar"}
           </Btn>
         </div>
@@ -1087,6 +1137,166 @@ const LoginScreen = ({ onLoggedIn }) => {
           Sesión protegida · Tus datos se sincronizan entre tus dispositivos
         </div>
       </form>
+    </div>
+  );
+};
+
+// ── Usuarios (solo admin, requiere backend PostgreSQL) ───────────
+const UsuariosAdmin = () => {
+  const me = useCurrentUser();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ username: "", password: "", role: "empleado" });
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const r = await fetch("/api/admin/users", { credentials: "include" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "No se pudo cargar usuarios");
+      setUsers(d.users || []);
+    } catch (e) {
+      setError(e.message || "Error de red");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const createUser = async (e) => {
+    e?.preventDefault();
+    if (!form.username.trim() || !form.password) return;
+    setSaving(true);
+    try {
+      const r = await fetch("/api/admin/users", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: form.username.trim(), password: form.password, role: form.role })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "No se pudo crear");
+      toast.ok(`Usuario ${form.username} creado`);
+      setForm({ username: "", password: "", role: "empleado" });
+      load();
+    } catch (err) {
+      toast.err(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const patchUser = async (id, body) => {
+    try {
+      const r = await fetch(`/api/admin/users/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "Error al actualizar");
+      load();
+      toast.ok("Usuario actualizado");
+    } catch (err) {
+      toast.err(err.message);
+    }
+  };
+
+  const removeUser = async (id, username) => {
+    if (!confirm(`¿Eliminar al usuario "${username}"?`)) return;
+    try {
+      const r = await fetch(`/api/admin/users/${id}`, { method: "DELETE", credentials: "include" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "No se pudo eliminar");
+      load();
+      toast.ok("Usuario eliminado");
+    } catch (err) {
+      toast.err(err.message);
+    }
+  };
+
+  if (me?.role !== "admin") {
+    return (
+      <div className="p-8 text-center text-[13px]" style={{ color: C.textDim }}>
+        Solo administradores pueden gestionar usuarios.
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8 max-w-3xl space-y-8">
+      <div>
+        <h2 className="text-[18px] font-bold mb-1" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif" }}>Usuarios del sistema</h2>
+        <p className="text-[12.5px]" style={{ color: C.textDim }}>Cuentas con acceso a LP Sport. Los empleados ven y editan pedidos; los admins gestionan usuarios.</p>
+      </div>
+
+      <form onSubmit={createUser} className="rounded-2xl p-5 space-y-4" style={{ background: C.surface, border: `1px solid ${C.border}`, boxShadow: ELEV.card }}>
+        <SectionLabel>Nuevo usuario</SectionLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="Usuario" className="px-3 py-2.5 rounded-xl text-[13px] outline-none" style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }} autoComplete="off" />
+          <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Contraseña" className="px-3 py-2.5 rounded-xl text-[13px] outline-none" style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }} />
+          <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="px-3 py-2.5 rounded-xl text-[13px] outline-none" style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}` }}>
+            <option value="empleado">Empleado</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <Btn variant="primary" icon={Plus} disabled={saving || !form.username.trim() || !form.password}>{saving ? "Creando…" : "Crear usuario"}</Btn>
+      </form>
+
+      {error && <div className="text-[12px] flex items-center gap-2" style={{ color: C.danger }}><AlertTriangle size={14} />{error}</div>}
+
+      <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${C.border}`, background: C.surface }}>
+        {loading ? (
+          <div className="p-8 text-center text-[12px]" style={{ color: C.textMute }}>Cargando…</div>
+        ) : users.length === 0 ? (
+          <div className="p-8 text-center text-[12px]" style={{ color: C.textMute }}>No hay usuarios</div>
+        ) : (
+          <table className="w-full text-left text-[12.5px]">
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${C.border}`, color: C.textMute }}>
+                <th className="px-4 py-3 font-semibold">Usuario</th>
+                <th className="px-4 py-3 font-semibold">Rol</th>
+                <th className="px-4 py-3 font-semibold">Estado</th>
+                <th className="px-4 py-3 font-semibold text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td className="px-4 py-3 font-semibold" style={{ color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{u.username}</td>
+                  <td className="px-4 py-3 capitalize" style={{ color: C.textDim }}>{u.role}</td>
+                  <td className="px-4 py-3">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg" style={{ background: u.active ? C.ok + "22" : C.danger + "22", color: u.active ? C.ok : C.danger }}>
+                      {u.active ? "Activo" : "Inactivo"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      <Btn size="sm" variant="ghost" onClick={() => {
+                        const p = prompt("Nueva contraseña (mín. 6 caracteres):");
+                        if (p && p.length >= 6) patchUser(u.id, { password: p });
+                        else if (p) toast.warn("Contraseña muy corta");
+                      }}>Clave</Btn>
+                      <Btn size="sm" variant="ghost" onClick={() => patchUser(u.id, { role: u.role === "admin" ? "empleado" : "admin" })}>
+                        {u.role === "admin" ? "→ Empleado" : "→ Admin"}
+                      </Btn>
+                      <Btn size="sm" variant="ghost" onClick={() => patchUser(u.id, { active: !u.active })}>
+                        {u.active ? "Desactivar" : "Activar"}
+                      </Btn>
+                      <Btn size="sm" variant="ghost" icon={Trash2} onClick={() => removeUser(u.id, u.username)} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 };
@@ -1364,7 +1574,7 @@ const NuevaEmpresaModal = ({ onClose, onSave, existingIds, existing }) => {
 
 const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedCliente }) => {
   const nextNum = useMemo(() => { const n = existingIds.map(id => parseInt(id.split("-").pop())).filter(n => !isNaN(n)); return String((Math.max(0, ...n)) + 1).padStart(3, "0"); }, [existingIds]);
-  const [form, setForm] = useState({ cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [] });
+  const [form, setForm] = useState({ nombre: "", cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [] });
   const tipoOptions = ["Camiseta titular", "Camiseta suplente", "Camiseta arquero", "Conjunto", "Short titular", "Short suplente", "Egresados", "Buzo polar", "Campera", "Otros"];
   const addArchivo = (f) => { if (f) setForm(prev => ({ ...prev, archivos: [...prev.archivos, f] })); };
   const removeArchivo = (idx) => setForm(prev => ({ ...prev, archivos: prev.archivos.filter((_, i) => i !== idx) }));
@@ -1375,6 +1585,7 @@ const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedClien
     const cliMatch = customers.find(c => c.equipo === form.cliente || c.nombre === form.cliente);
     const order = {
       id: `PED-2026-${nextNum}`,
+      nombre: form.nombre.trim(),
       clienteId: cliMatch?.id || "CLI-NEW",
       cliente: form.cliente,
       delegado: cliMatch?.nombre || "",
@@ -1394,6 +1605,7 @@ const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedClien
   };
   return (
     <Modal title={`Nuevo pedido · PED-2026-${nextNum}`} onClose={onClose} width="580px">
+      <Input label="Nombre del pedido" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Camisetas torneo clausura, Conjunto verano 2026…" />
       <div className="grid grid-cols-2 gap-3">
         <Input label={lockedCliente ? "Pedido para (editable)" : "Cliente / Equipo *"} value={form.cliente} onChange={e => setForm({ ...form, cliente: e.target.value })} placeholder="Ej: Club San Martín" />
         <Input label="Fecha de entrega *" type="date" value={form.fechaEntrega} onChange={e => setForm({ ...form, fechaEntrega: e.target.value })} />
@@ -1515,10 +1727,13 @@ const KanbanCard = ({ order, onClick, onDragStart, onDragEnd }) => {
           {isLate && <AlertTriangle size={11} style={{ color: C.danger }} />}
         </div>
       </div>
-      <div className="text-[12.5px] font-semibold leading-tight mb-2.5 line-clamp-2" style={{ color: C.text }}>
-        {order.cliente}
+      <div className="text-[12.5px] font-semibold leading-tight mb-1 line-clamp-2" style={{ color: C.text }}>
+        {order.nombre || order.cliente}
       </div>
-      <div className="text-[10.5px] mb-2.5 line-clamp-2" style={{ color: C.textDim }}>
+      {order.nombre && (
+        <div className="text-[10.5px] mb-1 truncate" style={{ color: C.textDim }}>{order.cliente}</div>
+      )}
+      <div className="text-[10.5px] mb-2.5 line-clamp-2" style={{ color: order.nombre ? C.textMute : C.textDim }}>
         {order.productos?.map(p => p.tipo).join(" · ")}
       </div>
       <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
@@ -1537,6 +1752,16 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
   const isLate = days < 0 && order.estado !== "entrega";
   const curIdx = estadoFlow.indexOf(order.estado);
   const isFinal = order.estado === "entrega";
+  const [editingNombre, setEditingNombre] = useState(false);
+  const [nombreDraft, setNombreDraft] = useState(order.nombre || "");
+  const nombreRef = useRef(null);
+  useEffect(() => { if (editingNombre) nombreRef.current?.focus(); }, [editingNombre]);
+  const saveNombre = () => {
+    setEditingNombre(false);
+    if (nombreDraft.trim() !== (order.nombre || "")) {
+      onUpdate?.({ ...order, nombre: nombreDraft.trim() });
+    }
+  };
   // Automation: if the planilla has any totals filled in, that's the source of truth for the order total
   const planillaTotal = (order.roster || []).reduce((a, r) => a + (Number(r.total) || 0), 0);
   const bodyRef = useRef(null);
@@ -1557,12 +1782,35 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
       }}>
       {/* Sticky Header */}
       <div className="flex items-start justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1 mr-3">
           <div className="text-[10.5px] mb-1" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>{order.id}</div>
-          <div className="text-[21px] leading-tight truncate" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700 }}>{order.cliente}</div>
-          <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>{order.delegado}</div>
+          {editingNombre ? (
+            <input
+              ref={nombreRef}
+              value={nombreDraft}
+              onChange={e => setNombreDraft(e.target.value)}
+              onBlur={saveNombre}
+              onKeyDown={e => { if (e.key === "Enter") saveNombre(); if (e.key === "Escape") { setEditingNombre(false); setNombreDraft(order.nombre || ""); } }}
+              placeholder="Nombre del pedido…"
+              className="w-full outline-none bg-transparent border-b text-[21px] leading-tight"
+              style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700, borderColor: C.accent }}
+            />
+          ) : (
+            <div
+              className="text-[21px] leading-tight cursor-pointer group flex items-center gap-2"
+              style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700 }}
+              onClick={() => { setNombreDraft(order.nombre || ""); setEditingNombre(true); }}
+              title="Clic para editar el nombre"
+            >
+              <span className="truncate">{order.nombre || order.cliente}</span>
+              <Edit3 size={12} className="shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: C.accent }} />
+            </div>
+          )}
+          <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>
+            {order.nombre ? `${order.cliente}${order.delegado ? " · " + order.delegado : ""}` : order.delegado}
+          </div>
         </div>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 shrink-0 ml-3"><X size={17} style={{ color: C.textDim }} /></button>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 shrink-0"><X size={17} style={{ color: C.textDim }} /></button>
       </div>
 
       {/* Scrollable body */}
@@ -2605,11 +2853,13 @@ function BerastoreSystem() {
 
   const lateCount = orders.filter(o => o.estado !== "entrega" && daysDiff(o.fechaEntrega) < 0).length;
 
+  const currentUser = useCurrentUser();
   const pageTitles = {
     pedidos:  { title: "PEDIDOS",   placeholder: "Buscar empresa, pedido, cliente…" },
     planillas:{ title: "PLANILLAS", placeholder: "Buscar planilla…" },
     diseno:   { title: "LP DESIGN", placeholder: "Buscar diseño…" },
-    entregas: { title: "ENTREGAS",  placeholder: "Buscar pedido…" }
+    entregas: { title: "ENTREGAS",  placeholder: "Buscar pedido…" },
+    usuarios: { title: "USUARIOS",  placeholder: "Buscar usuario…" }
   };
 
   // If the backend says we need to log in, show only the login screen
@@ -2707,6 +2957,7 @@ function BerastoreSystem() {
           {page === "planillas"  && <Planillas orders={orders} setOrders={setOrders} empresas={empresas} pendingPlanillaOrderId={pendingPlanillaOrderId} clearPendingPlanillaOrderId={() => setPendingPlanillaOrderId(null)} searchQuery={searchQuery} />}
           {page === "diseno"   && <Disenos designs={designs} setDesigns={setDesigns} customers={customers} orders={orders} pendingDesignView={pendingDesignView} clearPendingDesignView={() => setPendingDesignView(null)} searchQuery={searchQuery} />}
           {page === "entregas" && <Entregas orders={orders} searchQuery={searchQuery} />}
+          {page === "usuarios" && currentUser?.role === "admin" && <UsuariosAdmin />}
         </div>
       </main>
     </div>
