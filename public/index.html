@@ -1829,11 +1829,12 @@ const KanbanCard = ({ order, onClick, onDragStart, onDragEnd }) => {
 };
 
 // ── DetallePedidoDrawer ───────────────────────────────────────────
-const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate, onUpdate, onViewDesign, onOpenPlanilla }) => {
+const DetallePedidoDrawer = ({ order, designs = [], onClose, onAdvance, onDelete, onDuplicate, onUpdate, onViewDesign, onOpenPlanilla }) => {
   const days = daysDiff(order.fechaEntrega);
   const isLate = days < 0 && order.estado !== "entrega";
   const curIdx = estadoFlow.indexOf(order.estado);
   const isFinal = order.estado === "entrega";
+  const linkedDesign = designs.find(d => d.id === order.diseno || d.nombre === order.diseno);
   const [editingNombre, setEditingNombre] = useState(false);
   const [nombreDraft, setNombreDraft] = useState(order.nombre || "");
   const nombreRef = useRef(null);
@@ -1969,9 +1970,9 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
         <SectionLabel>Diseño · {order.diseno}</SectionLabel>
         <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
           <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden" style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
-            <JerseyMockup colors={order.colores || ["#888"]} tipoPrenda={order.tipoPrenda} />
+            <JerseyMockup colors={linkedDesign?.colores || order.colores || ["#888"]} tipoPrenda={linkedDesign?.tipoPrenda || order.tipoPrenda} />
           </div>
-          <div className="flex gap-1.5">{order.colores?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: `1px solid rgba(255,255,255,0.08)` }} />)}</div>
+          <div className="flex gap-1.5">{(linkedDesign?.colores || order.colores)?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: `1px solid rgba(255,255,255,0.08)` }} />)}</div>
           {order.archivoDiseno && <Paperclip size={11} style={{ color: C.accent }} />}
           <div className="flex-1" />
           <Btn size="sm" icon={Eye} variant="ghost" onClick={() => onViewDesign?.(order.diseno)}>Ver mockup</Btn>
@@ -2277,7 +2278,7 @@ const Pedidos = ({ orders, setOrders, customers, designs, setDesigns, empresas, 
       )}
 
       {showForm && <NuevoPedidoModal onClose={() => setShowForm(false)} onSave={addOrder} customers={customers} existingIds={orders.map(o => o.id)} lockedCliente={selectedEmpresa?.nombre} />}
-      {selected && <DetallePedidoDrawer order={selected} onClose={() => setSelected(null)} onAdvance={advanceOrder} onDelete={deleteOrder} onDuplicate={(o) => { const d = duplicateOrder(o); setSelected(d); }} onUpdate={upd => { setOrders(orders.map(o => o.id === upd.id ? upd : o)); setSelected(upd); }} onViewDesign={id => { setSelected(null); onViewDesign?.(id); }} onOpenPlanilla={id => { setSelected(null); onOpenPlanilla?.(id); }} />}
+      {selected && <DetallePedidoDrawer order={selected} designs={designs} onClose={() => setSelected(null)} onAdvance={advanceOrder} onDelete={deleteOrder} onDuplicate={(o) => { const d = duplicateOrder(o); setSelected(d); }} onUpdate={upd => { setOrders(orders.map(o => o.id === upd.id ? upd : o)); setSelected(upd); }} onViewDesign={id => { setSelected(null); onViewDesign?.(id); }} onOpenPlanilla={id => { setSelected(null); onOpenPlanilla?.(id); }} />}
     </div>
   );
 };
