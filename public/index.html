@@ -1656,7 +1656,10 @@ const NuevaEmpresaModal = ({ onClose, onSave, existingIds, existing }) => {
 
 const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedCliente }) => {
   const nextNum = useMemo(() => { const n = existingIds.map(id => parseInt(id.split("-").pop())).filter(n => !isNaN(n)); return String((Math.max(0, ...n)) + 1).padStart(3, "0"); }, [existingIds]);
-  const [form, setForm] = useState({ nombre: "", cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [] });
+  const [form, setForm] = useState({ nombre: "", cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [], colores: ["#5EA9E8", "#000000"] });
+  const setFormColor = (i, val) => setForm(prev => ({ ...prev, colores: prev.colores.map((c, ci) => ci === i ? val : c) }));
+  const addFormColor = () => setForm(prev => prev.colores.length < 4 ? ({ ...prev, colores: [...prev.colores, "#ffffff"] }) : prev);
+  const removeFormColor = (i) => setForm(prev => prev.colores.length > 1 ? ({ ...prev, colores: prev.colores.filter((_, ci) => ci !== i) }) : prev);
   const tipoOptions = ["Camiseta titular", "Camiseta suplente", "Camiseta arquero", "Conjunto", "Short titular", "Short suplente", "Egresados", "Buzo polar", "Campera", "Otros"];
   const addArchivo = (f) => { if (f) setForm(prev => ({ ...prev, archivos: [...prev.archivos, f] })); };
   const removeArchivo = (idx) => setForm(prev => ({ ...prev, archivos: prev.archivos.filter((_, i) => i !== idx) }));
@@ -1679,7 +1682,7 @@ const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedClien
       fechaEntrega: form.fechaEntrega,
       diseno: `EP-DSG-${String(parseInt(nextNum) + 100)}`,
       observaciones: form.observaciones,
-      colores: ["#5EA9E8", "#000000"],
+      colores: form.colores,
       archivosDiseno: form.archivos,
       archivoDiseno: form.archivos[0] || null  // back-compat for code that still reads single
     };
@@ -1721,6 +1724,21 @@ const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedClien
             </div>
           ))}
           <ArchivoUpload archivo={null} onChange={addArchivo} />
+        </div>
+      </div>
+      <div>
+        <SectionLabel>Colores de referencia</SectionLabel>
+        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          {form.colores.map((c, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <label className="relative cursor-pointer group">
+                <div className="w-8 h-8 rounded-lg border-2 transition-transform group-hover:scale-110" style={{ background: c, borderColor: "rgba(255,255,255,0.15)" }} />
+                <input type="color" value={c} onChange={e => setFormColor(i, e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+              </label>
+              {form.colores.length > 1 && <button type="button" onClick={() => removeFormColor(i)} className="w-5 h-5 rounded-md flex items-center justify-center hover:bg-white/10" style={{ color: C.textDim }}><X size={10} /></button>}
+            </div>
+          ))}
+          {form.colores.length < 4 && <button type="button" onClick={addFormColor} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 border border-dashed transition-colors" style={{ borderColor: C.border, color: C.textDim }}><Plus size={14} /></button>}
         </div>
       </div>
       <label className="block">
@@ -2303,12 +2321,16 @@ const downloadDesignSVG = (d) => {
   document.body.appendChild(a); a.click(); setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
 };
 
-const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }) => {
+const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, onUpdate, customers, orders }) => {
   const [lightbox, setLightbox] = useState(null);
   const cfg = estadoDiseno[d.estado] || estadoDiseno.en_proceso;
   const cli = customers.find(c => c.equipo === d.cliente || c.nombre === d.cliente);
   const linkedOrder = orders.find(o => o.id === d.pedidoVinculado);
   const isImg = d.archivo?.type?.startsWith("image/") && d.archivo?.dataUrl;
+  const colores = d.colores?.length ? d.colores : ["#5EA9E8", "#000000"];
+  const setColor = (i, val) => onUpdate?.({ ...d, colores: colores.map((c, ci) => ci === i ? val : c) });
+  const addColor = () => { if (colores.length < 4) onUpdate?.({ ...d, colores: [...colores, "#ffffff"] }); };
+  const removeColor = (i) => { if (colores.length > 1) onUpdate?.({ ...d, colores: colores.filter((_, ci) => ci !== i) }); };
 
   return (
     <>
@@ -2340,6 +2362,21 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
             <div className="flex gap-2">
               <Btn variant="primary" icon={Download} onClick={() => downloadDesignSVG(d)}>Descargar SVG</Btn>
               <Btn icon={MessageCircle} onClick={() => { if (!cli) { toast.warn("No hay cliente vinculado"); return; } window.open(`https://wa.me/${cli.whatsapp}?text=${encodeURIComponent(`Hola ${cli.nombre}! Te paso el mockup del diseño "${d.nombre}" (${d.id}) para que lo revises 🎨`)}`, "_blank"); }} disabled={!cli}>Enviar al cliente</Btn>
+            </div>
+            <div>
+              <SectionLabel>Colores de referencia</SectionLabel>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                {colores.map((c, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <label className="relative cursor-pointer group">
+                      <div className="w-8 h-8 rounded-lg border-2 transition-transform group-hover:scale-110" style={{ background: c, borderColor: "rgba(255,255,255,0.15)" }} />
+                      <input type="color" value={c} onChange={e => setColor(i, e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                    </label>
+                    {colores.length > 1 && <button onClick={() => removeColor(i)} className="w-5 h-5 rounded-md flex items-center justify-center hover:bg-white/10" style={{ color: C.textDim }}><X size={10} /></button>}
+                  </div>
+                ))}
+                {colores.length < 4 && <button onClick={addColor} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 border border-dashed transition-colors" style={{ borderColor: C.border, color: C.textDim }}><Plus size={14} /></button>}
+              </div>
             </div>
             {d.archivo && (
               <div>
@@ -2470,7 +2507,7 @@ const Disenos = ({ designs, setDesigns, customers, orders, pendingDesignView, cl
           })}
         </div>
       )}
-      {selected && <DetalleDisenoDrawer design={selected} onClose={() => setSelected(null)} onDelete={id => { setDesigns(designs.filter(d => d.id !== id)); setSelected(null); }} customers={customers} orders={orders} />}
+      {selected && <DetalleDisenoDrawer design={selected} onClose={() => setSelected(null)} onDelete={id => { setDesigns(designs.filter(d => d.id !== id)); setSelected(null); }} onUpdate={upd => { setDesigns(designs.map(x => x.id === upd.id ? upd : x)); setSelected(upd); }} customers={customers} orders={orders} />}
     </div>
   );
 };
