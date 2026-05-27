@@ -1966,11 +1966,8 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
       <div>
         <SectionLabel>Diseño · {order.diseno}</SectionLabel>
         <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden flex items-center justify-center" style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
-            {order.archivoDiseno?.type?.startsWith("image/") && order.archivoDiseno?.dataUrl
-              ? <img src={order.archivoDiseno.dataUrl} alt="" className="w-full h-full object-contain" />
-              : <JerseyMockup colors={order.colores || ["#888"]} tipoPrenda={order.tipoPrenda} />
-            }
+          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden" style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
+            <JerseyMockup colors={order.colores || ["#888"]} tipoPrenda={order.tipoPrenda} />
           </div>
           <div className="flex gap-1.5">{order.colores?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: `1px solid rgba(255,255,255,0.08)` }} />)}</div>
           {order.archivoDiseno && <Paperclip size={11} style={{ color: C.accent }} />}
@@ -3063,7 +3060,7 @@ function BerastoreSystem() {
       <ToastContainer />
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
-      <main className="flex-1 min-w-0 relative" style={{ zIndex: 1 }}>
+      <main className="flex-1 min-w-0">
         <Topbar
           title={pageTitles[page].title}
           searchValue={searchQuery}
