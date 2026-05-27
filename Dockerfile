@@ -6,9 +6,8 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY server.js .
-# Usar lp_sport.html como frontend principal
-RUN mkdir -p public
-COPY lp_sport.html ./public/index.html
+COPY public/ ./public/
+COPY lp_sport.html .
 
 ENV PORT=3000
 EXPOSE 3000
