@@ -56,7 +56,8 @@ import {
   ChevronDown, Download, Send, Eye, Hash, AlertTriangle, DollarSign,
   Clock, UploadCloud, FileText, Paperclip, ArrowLeft, Folder, Building2,
   ZoomIn, ClipboardPaste, ClipboardList, Printer, TrendingUp, Users, BarChart2,
-  Upload, Copy, ArrowUpDown, Menu
+  Upload, Copy, ArrowUpDown, Menu,
+  Home, Wifi, WifiOff
 } from "lucide-react";
 
 /* ================================================================
@@ -109,6 +110,20 @@ const ARS = (n) => "$\u202F" + Math.round(Number(n) || 0).toLocaleString("es-AR"
 const today = () => new Date().toISOString().slice(0, 10);
 const daysFromNow = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 const daysDiff = (dateStr) => Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+const fmtRelative = (iso) => {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return "ahora";
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return "hace " + s + "s";
+  const m = Math.floor(s / 60);
+  if (m < 60) return "hace " + m + " min";
+  const h = Math.floor(m / 60);
+  if (h < 24) return "hace " + h + " h";
+  const d = Math.floor(h / 24);
+  if (d < 7) return "hace " + d + " días";
+  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+};
 const getInitials = (name = "") => {
   const w = name.replace(/[^a-zA-Z0-9\sÁÉÍÓÚÑáéíóúñ]/g, "").trim().split(/\s+/).filter(Boolean);
   if (!w.length) return "?";
@@ -209,6 +224,23 @@ const useStorageMode = () => {
   const [m, set] = useState(storageMode);
   useEffect(() => { storageListeners.add(set); return () => storageListeners.delete(set); }, []);
   return m;
+};
+
+const useActivityLog = (limit = 50, refreshKey = 0) => {
+  const [entries, setEntries] = useState([]);
+  const mode = useStorageMode();
+  useEffect(() => {
+    if (mode !== "api") { setEntries([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/activity?limit=${limit}`, { credentials: "include" });
+        if (r.ok && !cancelled) { const d = await r.json(); setEntries(d.entries || []); }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [mode, limit, refreshKey]);
+  return entries;
 };
 
 // Usuario autenticado actual: { role, username } | null
@@ -538,7 +570,158 @@ const StatChip = ({ label, value, color = C.text, icon: Icon, accent = false }) 
   </div>
 );
 
-// Divider
+// ── Dashboard (Inicio) ──────────────────────────────────────────
+const ConnectionBadge = () => {
+  const mode = useStorageMode();
+  const cfg = {
+    api:      { label: "Sincronizado",    color: C.ok,       dot: C.ok },
+    login:    { label: "Sin sesión",      color: C.warn,     dot: C.warn },
+    local:    { label: "Solo local",      color: C.textMute, dot: C.textMute },
+    checking: { label: "Verificando…",   color: C.textDim,  dot: C.textDim },
+  }[mode] || { label: "—", color: C.textDim, dot: C.textDim };
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold"
+      style={{ background: "rgba(255,255,255,0.03)", color: cfg.color, border: `1px solid ${C.border}` }}>
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: cfg.dot, boxShadow: `0 0 6px ${cfg.dot}88` }} />
+      {cfg.label}
+    </div>
+  );
+};
+
+const DashSection = ({ title, icon: Icon, count, accent, children }) => (
+  <div className="rounded-2xl p-4" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2">
+        <Icon size={14} style={{ color: accent }} strokeWidth={2.2} />
+        <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: C.text }}>{title}</span>
+      </div>
+      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: accent + "22", color: accent }}>{count}</span>
+    </div>
+    {children}
+  </div>
+);
+
+const DashRow = ({ order, onClick, highlight }) => {
+  const d = daysDiff(order.fechaEntrega);
+  const dateLabel = d === 0 ? "hoy" : d < 0 ? `${Math.abs(d)} días atraso` : d === 1 ? "mañana" : `en ${d} días`;
+  const dateColor = d < 0 ? C.danger : d <= 2 ? C.warn : C.textDim;
+  const cfg = estadoConfig[order.estado] || estadoConfig.diseno;
+  const unidades = (order.roster || []).reduce((s, r) => s + (r.camiseta || 0) + (r.short || 0), 0);
+  return (
+    <button onClick={onClick}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors hover:bg-white/5"
+      style={{ border: highlight ? `1px solid ${C.danger}33` : "1px solid transparent" }}>
+      <span className="text-[10px] font-black px-1.5 py-0.5 rounded shrink-0" style={{ background: cfg.bg, color: cfg.color, fontFamily: "'JetBrains Mono',monospace" }}>{order.id.split("-").pop()}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[12.5px] font-semibold truncate" style={{ color: C.text }}>{order.cliente}</div>
+        <div className="text-[10px] truncate" style={{ color: C.textMute }}>{cfg.label} · {unidades || "sin"} unidades</div>
+      </div>
+      <div className="text-right shrink-0">
+        <div className="text-[10.5px] font-bold" style={{ color: dateColor }}>{dateLabel}</div>
+        <div className="text-[9px]" style={{ color: C.textMute }}>{order.fechaEntrega}</div>
+      </div>
+      <ChevronRight size={14} style={{ color: C.textMute }} />
+    </button>
+  );
+};
+
+const DashEmpty = ({ children }) => (
+  <div className="px-3 py-5 text-center text-[11.5px]" style={{ color: C.textMute, background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>{children}</div>
+);
+
+const Dashboard = ({ orders, designs, customers, onOpenOrder, onSetPage }) => {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const activity = useActivityLog(15, refreshKey);
+  useEffect(() => { const t = setInterval(() => setRefreshKey(k => k + 1), 30000); return () => clearInterval(t); }, []);
+
+  const visibleOrders = useMemo(() => orders.filter(o => o.estado !== "archivado"), [orders]);
+  const activos = visibleOrders.filter(o => o.estado !== "entrega");
+  const atrasados = activos.filter(o => daysDiff(o.fechaEntrega) < 0);
+  const proximos = activos.filter(o => { const d = daysDiff(o.fechaEntrega); return d >= 0 && d <= 7; }).sort((a, b) => daysDiff(a.fechaEntrega) - daysDiff(b.fechaEntrega));
+  const ahora = new Date();
+  const thisMonth = orders.filter(o => { const d = new Date(o.fechaPedido); return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear(); });
+  const last30dEntregas = orders.filter(o => o.estado === "entrega" && daysDiff(o.fechaEntrega) >= -30 && daysDiff(o.fechaEntrega) <= 0);
+
+  const kpis = [
+    { label: "Activos",        value: activos.length,          icon: Package,       color: C.accent,   sub: `de ${visibleOrders.length} pedidos`,     onClick: () => onSetPage("pedidos") },
+    { label: "Atrasados",      value: atrasados.length,        icon: AlertTriangle, color: C.danger,   sub: atrasados.length === 0 ? "todo al día" : "necesitan acción ya", onClick: () => onSetPage("entregas") },
+    { label: "Este mes",       value: thisMonth.length,        icon: TrendingUp,    color: "#a855f7",  sub: "pedidos nuevos",                          onClick: () => onSetPage("pedidos") },
+    { label: "Entregados 30d", value: last30dEntregas.length,  icon: CheckCircle2,  color: C.ok,       sub: "últimos 30 días",                         onClick: () => onSetPage("entregas") },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider" style={{ background: C.accentSoft, color: C.accent, border: `1px solid ${C.accent}33` }}>
+            <Sparkles size={12} strokeWidth={2.5} />
+            INICIO
+          </div>
+          <div className="text-[11px] mt-2" style={{ color: C.textDim }}>Resumen de tu día — actualizado en vivo</div>
+        </div>
+        <ConnectionBadge />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpis.map((k, i) => {
+          const Icon = k.icon;
+          return (
+            <button key={i} onClick={k.onClick}
+              className="text-left p-4 rounded-2xl transition-all hover:-translate-y-0.5"
+              style={{ background: C.surface, border: `1px solid ${C.border}` }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = k.color + "55"}
+              onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: k.color + "22", color: k.color }}><Icon size={16} strokeWidth={2.2} /></div>
+                <ChevronRight size={14} style={{ color: C.textMute }} />
+              </div>
+              <div className="text-[28px] font-black leading-none" style={{ color: k.color }}>{k.value}</div>
+              <div className="text-[11px] font-bold mt-1.5 uppercase tracking-wider" style={{ color: C.text }}>{k.label}</div>
+              <div className="text-[10px] mt-0.5" style={{ color: C.textMute }}>{k.sub}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <DashSection title="Próximas entregas" icon={Clock} count={proximos.length} accent={C.accent}>
+          {proximos.length === 0
+            ? <DashEmpty>Nada para los próximos 7 días</DashEmpty>
+            : proximos.slice(0, 5).map(o => <DashRow key={o.id} order={o} onClick={() => onOpenOrder(o)} />)
+          }
+        </DashSection>
+        <DashSection title="Atrasados" icon={AlertTriangle} count={atrasados.length} accent={atrasados.length ? C.danger : C.ok}>
+          {atrasados.length === 0
+            ? <DashEmpty>Sin pedidos vencidos</DashEmpty>
+            : atrasados.slice(0, 5).map(o => <DashRow key={o.id} order={o} onClick={() => onOpenOrder(o)} highlight />)
+          }
+        </DashSection>
+      </div>
+
+      <DashSection title="Actividad reciente" icon={Activity} count={activity.length} accent={C.textDim}>
+        {activity.length === 0
+          ? <DashEmpty>Los movimientos van a aparecer acá cuando estés sincronizado al servidor</DashEmpty>
+          : (
+            <div className="space-y-1.5">
+              {activity.slice(0, 10).map(e => (
+                <button key={e.id}
+                  onClick={() => { if (!e.orderId) return; const o = orders.find(x => x.id === e.orderId); if (o) onOpenOrder(o); }}
+                  disabled={!e.orderId}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                  style={{ cursor: e.orderId ? "pointer" : "default" }}>
+                  <span className="text-[10px] font-bold uppercase shrink-0 px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.04)", color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{e.type?.split(".")[0]}</span>
+                  <span className="text-[12px] truncate flex-1" style={{ color: C.text }}>{e.message}</span>
+                  <span className="text-[10px] shrink-0" style={{ color: C.textMute }}>{fmtRelative(e.timestamp)}</span>
+                </button>
+              ))}
+            </div>
+          )
+        }
+      </DashSection>
+    </div>
+  );
+};
+
 // ── LP Logo (marca real de la imagen enviada) ────────────────────
 const LP3DLogo = ({ size = 44 }) => (
   <div style={{ width: size, height: size, flexShrink: 0, borderRadius: Math.round(size * 0.18), overflow: "hidden", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -606,6 +789,7 @@ const ArchivoUpload = ({ archivo, onChange }) => {
 
 // ── Sidebar ──────────────────────────────────────────────────────
 const NAV_BASE = [
+  { key: "inicio",   label: "Inicio",    icon: Home },
   { key: "pedidos",  label: "Pedidos",  icon: Package },
   { key: "planillas",  label: "Planillas",  icon: ClipboardList },
   { key: "diseno",   label: "LP design", icon: Palette },
@@ -2697,7 +2881,7 @@ const Planillas = ({ orders, setOrders, empresas, pendingPlanillaOrderId, clearP
 
 // ── ROOT APP ─────────────────────────────────────────────────────
 function BerastoreSystem() {
-  const [page, setPage] = useState("pedidos");
+  const [page, setPage] = useState("inicio");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orders, setOrders] = usePersistedState("lpsport:orders:v8", seedOrders);
   const [customers] = usePersistedState("lpsport:customers:v8", seedCustomers);
@@ -2862,6 +3046,7 @@ function BerastoreSystem() {
           action={null}
         />
         <div className="fade-in" key={page}>
+          {page === "inicio"   && <Dashboard orders={orders} designs={designs} customers={customers} onOpenOrder={() => setPage("pedidos")} onSetPage={setPage} />}
           {page === "pedidos"  && <Pedidos orders={orders} setOrders={setOrders} customers={customers} designs={designs} setDesigns={setDesigns} empresas={empresas} setEmpresas={setEmpresas} onViewDesign={openDesign} onOpenPlanilla={openPlanilla} searchQuery={searchQuery} />}
           {page === "planillas"  && <Planillas orders={orders} setOrders={setOrders} empresas={empresas} pendingPlanillaOrderId={pendingPlanillaOrderId} clearPendingPlanillaOrderId={() => setPendingPlanillaOrderId(null)} searchQuery={searchQuery} />}
           {page === "diseno"   && <Disenos designs={designs} setDesigns={setDesigns} customers={customers} orders={orders} pendingDesignView={pendingDesignView} clearPendingDesignView={() => setPendingDesignView(null)} searchQuery={searchQuery} />}
