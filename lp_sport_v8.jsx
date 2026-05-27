@@ -161,6 +161,19 @@ const useStorageMode = () => {
   return m;
 };
 
+// Usuario autenticado actual: { role, username } | null
+let currentUser = null;
+const userListeners = new Set();
+const setCurrentUser = (u) => {
+  currentUser = u;
+  userListeners.forEach(fn => { try { fn(u); } catch {} });
+};
+const useCurrentUser = () => {
+  const [u, set] = useState(currentUser);
+  useEffect(() => { userListeners.add(set); return () => userListeners.delete(set); }, []);
+  return u;
+};
+
 // Detect mode once on app boot.
 const probeApiOnce = (() => {
   let probed = false;
@@ -169,8 +182,11 @@ const probeApiOnce = (() => {
     probed = true;
     try {
       const r = await fetch("/api/me", { credentials: "include" });
-      if (r.ok) setStorageMode("api");
-      else if (r.status === 401) setStorageMode("login");
+      if (r.ok) {
+        const d = await r.json();
+        setCurrentUser({ role: d.role, username: d.username });
+        setStorageMode("api");
+      } else if (r.status === 401) setStorageMode("login");
       else setStorageMode("local");
     } catch {
       setStorageMode("local");
@@ -702,6 +718,8 @@ const NAV = [
 const Sidebar = ({ page, setPage, orders, empresas }) => {
   const lateCount = orders.filter(o => o.estado !== "entrega" && daysDiff(o.fechaEntrega) < 0).length;
   const activeCount = orders.filter(o => o.estado !== "entrega").length;
+  const sidebarUser = useCurrentUser();
+  const sidebarMode = useStorageMode();
 
   return (
     <aside className="w-[220px] shrink-0 flex flex-col h-screen sticky top-0" style={{ background: C.surface, borderRight: `1px solid ${C.border}` }}>
@@ -760,10 +778,18 @@ const Sidebar = ({ page, setPage, orders, empresas }) => {
 
       <div className="px-4 py-4 flex items-center gap-2.5" style={{ borderTop: `1px solid ${C.border}` }}>
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-          style={{ background: C.gradient, color: "#fff" }}>D</div>
+          style={{ background: C.gradient, color: "#fff" }}>
+          {sidebarMode === "api" && sidebarUser ? (sidebarUser.username[0] || "U").toUpperCase() : "D"}
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[12px] font-semibold truncate" style={{ color: C.text }}>Diseñador</div>
-          <div className="text-[10px] truncate" style={{ color: C.textMute }}>LP Sport · Berazategui</div>
+          <div className="text-[12px] font-semibold truncate" style={{ color: C.text }}>
+            {sidebarMode === "api" && sidebarUser ? sidebarUser.username : "Diseñador"}
+          </div>
+          <div className="text-[10px] truncate" style={{ color: C.textMute }}>
+            {sidebarMode === "api" && sidebarUser
+              ? (sidebarUser.role === "admin" ? "Admin · LP Sport" : "Empleado · LP Sport")
+              : "LP Sport · Berazategui"}
+          </div>
         </div>
         <SidebarFooterAction />
       </div>
@@ -959,6 +985,7 @@ const Drawer = ({ onClose, children }) => {
 
 // ── LoginScreen: shown when backend reports 401 ──────────────────
 const LoginScreen = ({ onLoggedIn }) => {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -975,9 +1002,11 @@ const LoginScreen = ({ onLoggedIn }) => {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ username: username.trim(), password })
       });
       if (r.ok) {
+        const d = await r.json();
+        setCurrentUser({ role: d.role, username: d.username });
         onLoggedIn?.();
       } else {
         const d = await r.json().catch(() => ({}));
@@ -1008,13 +1037,31 @@ const LoginScreen = ({ onLoggedIn }) => {
           boxShadow: ELEV.floating
         }}>
           <div>
-            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
+            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Usuario</div>
             <input
               ref={inputRef}
+              type="text"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(""); }}
+              placeholder="tu usuario"
+              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
+              style={{
+                background: C.surface2,
+                color: C.text,
+                border: `1px solid ${error ? C.danger + "55" : C.border}`,
+                fontFamily: "'JetBrains Mono', monospace",
+                ...PREMIUM_FONT
+              }}
+              autoComplete="username"
+            />
+          </div>
+          <div>
+            <div className="text-[10.5px] font-black uppercase tracking-[0.18em] mb-2" style={{ color: C.textMute }}>Contraseña</div>
+            <input
               type="password"
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
-              placeholder="Ingresá tu clave"
+              placeholder="tu contraseña"
               className="w-full px-4 py-3 rounded-xl text-[14px] outline-none"
               style={{
                 background: C.surface2,
@@ -1028,7 +1075,7 @@ const LoginScreen = ({ onLoggedIn }) => {
             {error && <div className="text-[11.5px] mt-2 flex items-center gap-1.5" style={{ color: C.danger }}><AlertTriangle size={11} />{error}</div>}
           </div>
 
-          <Btn variant="primary" onClick={submit} disabled={submitting || !password} className="w-full justify-center">
+          <Btn variant="primary" onClick={submit} disabled={submitting || !username || !password} className="w-full justify-center">
             {submitting ? "Entrando…" : "Entrar"}
           </Btn>
         </div>
@@ -1314,7 +1361,7 @@ const NuevaEmpresaModal = ({ onClose, onSave, existingIds, existing }) => {
 
 const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedCliente }) => {
   const nextNum = useMemo(() => { const n = existingIds.map(id => parseInt(id.split("-").pop())).filter(n => !isNaN(n)); return String((Math.max(0, ...n)) + 1).padStart(3, "0"); }, [existingIds]);
-  const [form, setForm] = useState({ cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [] });
+  const [form, setForm] = useState({ nombre: "", cliente: lockedCliente || "", tipo1: "Camiseta titular", tipo2: "", tipo3: "", fechaEntrega: daysFromNow(14), observaciones: "", archivos: [] });
   const tipoOptions = ["Camiseta titular", "Camiseta suplente", "Camiseta arquero", "Conjunto", "Short titular", "Short suplente", "Egresados", "Buzo polar", "Campera", "Otros"];
   const addArchivo = (f) => { if (f) setForm(prev => ({ ...prev, archivos: [...prev.archivos, f] })); };
   const removeArchivo = (idx) => setForm(prev => ({ ...prev, archivos: prev.archivos.filter((_, i) => i !== idx) }));
@@ -1325,6 +1372,7 @@ const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedClien
     const cliMatch = customers.find(c => c.equipo === form.cliente || c.nombre === form.cliente);
     const order = {
       id: `PED-2026-${nextNum}`,
+      nombre: form.nombre.trim(),
       clienteId: cliMatch?.id || "CLI-NEW",
       cliente: form.cliente,
       delegado: cliMatch?.nombre || "",
@@ -1344,6 +1392,7 @@ const NuevoPedidoModal = ({ onClose, onSave, customers, existingIds, lockedClien
   };
   return (
     <Modal title={`Nuevo pedido · PED-2026-${nextNum}`} onClose={onClose} width="580px">
+      <Input label="Nombre del pedido" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Camisetas torneo clausura, Conjunto verano 2026…" />
       <div className="grid grid-cols-2 gap-3">
         <Input label={lockedCliente ? "Pedido para (editable)" : "Cliente / Equipo *"} value={form.cliente} onChange={e => setForm({ ...form, cliente: e.target.value })} placeholder="Ej: Club San Martín" />
         <Input label="Fecha de entrega *" type="date" value={form.fechaEntrega} onChange={e => setForm({ ...form, fechaEntrega: e.target.value })} />
@@ -1465,10 +1514,13 @@ const KanbanCard = ({ order, onClick, onDragStart, onDragEnd }) => {
           {isLate && <AlertTriangle size={11} style={{ color: C.danger }} />}
         </div>
       </div>
-      <div className="text-[12.5px] font-semibold leading-tight mb-2.5 line-clamp-2" style={{ color: C.text }}>
-        {order.cliente}
+      <div className="text-[12.5px] font-semibold leading-tight mb-1 line-clamp-2" style={{ color: C.text }}>
+        {order.nombre || order.cliente}
       </div>
-      <div className="text-[10.5px] mb-2.5 line-clamp-2" style={{ color: C.textDim }}>
+      {order.nombre && (
+        <div className="text-[10.5px] mb-1 truncate" style={{ color: C.textDim }}>{order.cliente}</div>
+      )}
+      <div className="text-[10.5px] mb-2.5 line-clamp-2" style={{ color: order.nombre ? C.textMute : C.textDim }}>
         {order.productos?.map(p => p.tipo).join(" · ")}
       </div>
       <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
@@ -1487,6 +1539,16 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
   const isLate = days < 0 && order.estado !== "entrega";
   const curIdx = estadoFlow.indexOf(order.estado);
   const isFinal = order.estado === "entrega";
+  const [editingNombre, setEditingNombre] = useState(false);
+  const [nombreDraft, setNombreDraft] = useState(order.nombre || "");
+  const nombreRef = useRef(null);
+  useEffect(() => { if (editingNombre) nombreRef.current?.focus(); }, [editingNombre]);
+  const saveNombre = () => {
+    setEditingNombre(false);
+    if (nombreDraft.trim() !== (order.nombre || "")) {
+      onUpdate?.({ ...order, nombre: nombreDraft.trim() });
+    }
+  };
   // Automation: if the planilla has any totals filled in, that's the source of truth for the order total
   const planillaTotal = (order.roster || []).reduce((a, r) => a + (Number(r.total) || 0), 0);
   const bodyRef = useRef(null);
@@ -1507,12 +1569,35 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
       }}>
       {/* Sticky Header */}
       <div className="flex items-start justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1 mr-3">
           <div className="text-[10.5px] mb-1" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>{order.id}</div>
-          <div className="text-[21px] leading-tight truncate" style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700 }}>{order.cliente}</div>
-          <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>{order.delegado}</div>
+          {editingNombre ? (
+            <input
+              ref={nombreRef}
+              value={nombreDraft}
+              onChange={e => setNombreDraft(e.target.value)}
+              onBlur={saveNombre}
+              onKeyDown={e => { if (e.key === "Enter") saveNombre(); if (e.key === "Escape") { setEditingNombre(false); setNombreDraft(order.nombre || ""); } }}
+              placeholder="Nombre del pedido…"
+              className="w-full outline-none bg-transparent border-b text-[21px] leading-tight"
+              style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700, borderColor: C.accent }}
+            />
+          ) : (
+            <div
+              className="text-[21px] leading-tight cursor-pointer group flex items-center gap-2"
+              style={{ color: C.text, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.03em", fontWeight: 700 }}
+              onClick={() => { setNombreDraft(order.nombre || ""); setEditingNombre(true); }}
+              title="Clic para editar el nombre"
+            >
+              <span className="truncate">{order.nombre || order.cliente}</span>
+              <Edit3 size={12} className="shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: C.accent }} />
+            </div>
+          )}
+          <div className="text-[12px] mt-0.5" style={{ color: C.textDim }}>
+            {order.nombre ? `${order.cliente}${order.delegado ? " · " + order.delegado : ""}` : order.delegado}
+          </div>
         </div>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 shrink-0 ml-3"><X size={17} style={{ color: C.textDim }} /></button>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 shrink-0"><X size={17} style={{ color: C.textDim }} /></button>
       </div>
 
       {/* Scrollable body */}
