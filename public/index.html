@@ -1433,7 +1433,7 @@ const WelcomeModal = ({ onClose }) => {
 };
 
 // ── Lightbox ─────────────────────────────────────────────────────
-const Lightbox = ({ archivo, onClose }) => {
+const Lightbox = ({ archivo, onClose, onBack }) => {
   useEffect(() => {
     const h = e => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
@@ -1450,7 +1450,7 @@ const Lightbox = ({ archivo, onClose }) => {
         </div>
         <div className="flex gap-2">
           <a href={archivo.dataUrl} download={archivo.name}><Btn icon={Download}>Descargar</Btn></a>
-          <Btn onClick={onClose} icon={ArrowLeft}>Volver</Btn>
+          <Btn onClick={onBack || onClose} icon={ArrowLeft}>Volver</Btn>
         </div>
       </div>
       <div className="flex-1 flex items-center justify-center p-6 md:p-12 min-h-0" onClick={e => e.stopPropagation()}>
@@ -2377,7 +2377,7 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
           </div>
         </div>
       </div>
-      {lightbox && <Lightbox archivo={lightbox} onClose={() => setLightbox(null)} />}
+      {lightbox && <Lightbox archivo={lightbox} onClose={() => setLightbox(null)} onBack={() => { setLightbox(null); onClose(); }} />}
     </>
   );
 };
