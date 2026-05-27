@@ -1444,8 +1444,8 @@ const Lightbox = ({ archivo, onClose }) => {
           <Btn onClick={onClose} icon={X}>ESC</Btn>
         </div>
       </div>
-      <div className="flex-1 flex items-center justify-center p-8" onClick={e => e.stopPropagation()}>
-        <img src={archivo.dataUrl} alt="" className="max-w-full max-h-full object-contain rounded-2xl" style={{ boxShadow: "0 32px 96px rgba(0,0,0,0.8)" }} />
+      <div className="flex-1 flex items-center justify-center p-6 md:p-12 min-h-0" onClick={e => e.stopPropagation()}>
+        <img src={archivo.dataUrl} alt="" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: 16, boxShadow: "0 32px 96px rgba(0,0,0,0.8)", display: "block" }} />
       </div>
     </div>
   );
@@ -1957,7 +1957,10 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
       <div>
         <SectionLabel>Diseño · {order.diseno}</SectionLabel>
         <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-          <div className="flex gap-1.5">{order.colores?.map((c, i) => <div key={i} className="w-7 h-7 rounded-lg" style={{ background: c, border: `1px solid rgba(255,255,255,0.08)` }} />)}</div>
+          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden" style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
+            <JerseyMockup colors={order.colores || ["#888"]} tipoPrenda={order.tipoPrenda} />
+          </div>
+          <div className="flex gap-1.5">{order.colores?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: `1px solid rgba(255,255,255,0.08)` }} />)}</div>
           {order.archivoDiseno && <Paperclip size={11} style={{ color: C.accent }} />}
           <div className="flex-1" />
           <Btn size="sm" icon={Eye} variant="ghost" onClick={() => onViewDesign?.(order.diseno)}>Ver mockup</Btn>
@@ -2304,6 +2307,9 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
         }}>
           {/* Sticky Header */}
           <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
+            <button onClick={onClose} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all hover:bg-white/5" style={{ color: C.textDim }}>
+              <ArrowLeft size={14} /> Volver
+            </button>
             <span className="text-[10.5px] font-black" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{d.id}</span>
             <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5"><X size={16} style={{ color: C.textDim }} /></button>
           </div>
@@ -2437,7 +2443,10 @@ const Disenos = ({ designs, setDesigns, customers, orders, pendingDesignView, cl
             return (
               <div key={d.id} className="rounded-2xl overflow-hidden transition-all duration-150 hover:-translate-y-0.5 cursor-pointer" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
                 <div onClick={() => setSelected(d)} className="relative flex items-center justify-center overflow-hidden" style={{ height: 180, background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
-                  <div className="w-28 h-28"><JerseyMockup colors={d.colores} tipoPrenda={d.tipoPrenda} /></div>
+                  {d.archivo?.type?.startsWith("image/") && d.archivo?.dataUrl
+                    ? <img src={d.archivo.dataUrl} alt="" className="w-full h-full object-contain" style={{ padding: "16px" }} />
+                    : <div className="w-28 h-28"><JerseyMockup colors={d.colores} tipoPrenda={d.tipoPrenda} /></div>
+                  }
                   <div className="absolute top-2.5 right-2.5"><Badge dot color={cfg.color} bg={cfg.bg}>{cfg.label}</Badge></div>
                   <div className="absolute bottom-2.5 left-2.5 flex gap-1">{d.colores?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: "1px solid rgba(0,0,0,0.4)" }} />)}</div>
                   {d.pedidoVinculado && <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[9px] font-black flex items-center gap-1" style={{ background: "rgba(0,0,0,0.8)", color: C.text, fontFamily: "'JetBrains Mono', monospace" }}><Package size={8} /> {d.pedidoVinculado}</div>}
