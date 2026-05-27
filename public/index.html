@@ -49,6 +49,7 @@
 
   <script type="text/babel" data-type="module" data-presets="react">
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Package, Palette, Truck, Settings as SettingsIcon, Plus, Search,
   CheckCircle2, Circle, ChevronRight, X, Edit3, Trash2, MessageCircle,
@@ -1441,8 +1442,8 @@ const Lightbox = ({ archivo, onClose, onBack }) => {
     return () => { window.removeEventListener("keydown", h); document.body.style.overflow = ""; };
   }, [onClose]);
   if (!archivo?.dataUrl) return null;
-  return (
-    <div className="fixed inset-0 z-[300] flex flex-col" style={{ background: "rgba(0,0,0,0.96)", backdropFilter: "blur(12px)" }} onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 flex flex-col" style={{ background: "rgba(0,0,0,0.96)", backdropFilter: "blur(12px)", zIndex: 99999 }} onClick={onClose}>
       <div className="flex items-center justify-between px-6 py-4 shrink-0" onClick={e => e.stopPropagation()}>
         <div>
           <div className="text-[14px] font-semibold" style={{ color: C.text }}>{archivo.name}</div>
@@ -1456,7 +1457,8 @@ const Lightbox = ({ archivo, onClose, onBack }) => {
       <div className="flex-1 flex items-center justify-center p-6 md:p-12 min-h-0" onClick={e => e.stopPropagation()}>
         <img src={archivo.dataUrl} alt="" style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: 16, boxShadow: "0 32px 96px rgba(0,0,0,0.8)", display: "block" }} />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
