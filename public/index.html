@@ -1969,8 +1969,11 @@ const DetallePedidoDrawer = ({ order, designs = [], onClose, onAdvance, onDelete
       <div>
         <SectionLabel>Diseño · {order.diseno}</SectionLabel>
         <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden" style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
-            <JerseyMockup colors={linkedDesign?.colores || order.colores || ["#888"]} tipoPrenda={linkedDesign?.tipoPrenda || order.tipoPrenda} />
+          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden relative" style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
+            {linkedDesign?.archivo?.type?.startsWith("image/") && linkedDesign?.archivo?.dataUrl
+              ? <img src={linkedDesign.archivo.dataUrl} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              : <JerseyMockup colors={linkedDesign?.colores || order.colores || ["#888"]} tipoPrenda={linkedDesign?.tipoPrenda || order.tipoPrenda} />
+            }
           </div>
           <div className="flex gap-1.5">{(linkedDesign?.colores || order.colores)?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: `1px solid rgba(255,255,255,0.08)` }} />)}</div>
           {order.archivoDiseno && <Paperclip size={11} style={{ color: C.accent }} />}
