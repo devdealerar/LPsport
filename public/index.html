@@ -796,7 +796,7 @@ const NAV_BASE = [
   { key: "entregas", label: "Entregas", icon: Truck }
 ];
 
-const Sidebar = ({ page, setPage, orders, empresas, open, onClose }) => {
+const Sidebar = ({ page, setPage, orders, empresas, open, onClose, collapsed }) => {
   const lateCount = orders.filter(o => o.estado !== "entrega" && daysDiff(o.fechaEntrega) < 0).length;
   const sidebarUser = useCurrentUser();
   const sidebarMode = useStorageMode();
@@ -824,7 +824,7 @@ const Sidebar = ({ page, setPage, orders, empresas, open, onClose }) => {
           onClick={onClose}
         />
       )}
-      <aside className={`lp-sidebar${open ? " lp-sidebar-open" : ""}`}
+      <aside className={`lp-sidebar${open ? " lp-sidebar-open" : ""}${collapsed ? " lp-sidebar-collapsed" : ""}`}
         style={{ background: C.surface, borderRight: `1px solid ${C.border}` }}>
 
         {/* Logo + close button (mobile) */}
@@ -926,7 +926,7 @@ const SidebarFooterAction = () => {
 };
 
 // ── Topbar ───────────────────────────────────────────────────────
-const Topbar = ({ title, action, searchValue, onSearchChange, searchRef, searchPlaceholder, onMenuToggle }) => (
+const Topbar = ({ title, action, searchValue, onSearchChange, searchRef, searchPlaceholder, onMenuToggle, onSidebarToggle }) => (
   <div className="sticky top-0 z-20 px-4 md:px-8 py-3 md:py-5 flex items-center justify-between gap-3"
     style={{
       background: "rgba(8,8,8,0.82)",
@@ -937,12 +937,21 @@ const Topbar = ({ title, action, searchValue, onSearchChange, searchRef, searchP
     }}
   >
     <div className="flex items-center gap-3 min-w-0">
-      {/* Hamburger — solo mobile */}
+      {/* Hamburger — mobile */}
       <button
         className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl shrink-0 transition-colors hover:bg-white/5"
         style={{ color: C.textDim, border: `1px solid ${C.border}` }}
         onClick={onMenuToggle}
         aria-label="Abrir menú"
+      >
+        <Menu size={18} />
+      </button>
+      {/* Sidebar toggle — desktop */}
+      <button
+        className="hidden md:flex w-9 h-9 items-center justify-center rounded-xl shrink-0 transition-colors hover:bg-white/5"
+        style={{ color: C.textDim, border: `1px solid ${C.border}` }}
+        onClick={onSidebarToggle}
+        aria-label="Ocultar/mostrar menú"
       >
         <Menu size={18} />
       </button>
@@ -1441,7 +1450,7 @@ const Lightbox = ({ archivo, onClose }) => {
         </div>
         <div className="flex gap-2">
           <a href={archivo.dataUrl} download={archivo.name}><Btn icon={Download}>Descargar</Btn></a>
-          <Btn onClick={onClose} icon={X}>ESC</Btn>
+          <Btn onClick={onClose} icon={ArrowLeft}>Volver</Btn>
         </div>
       </div>
       <div className="flex-1 flex items-center justify-center p-6 md:p-12 min-h-0" onClick={e => e.stopPropagation()}>
@@ -1957,8 +1966,11 @@ const DetallePedidoDrawer = ({ order, onClose, onAdvance, onDelete, onDuplicate,
       <div>
         <SectionLabel>Diseño · {order.diseno}</SectionLabel>
         <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden" style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
-            <JerseyMockup colors={order.colores || ["#888"]} tipoPrenda={order.tipoPrenda} />
+          <div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden flex items-center justify-center" style={{ background: `radial-gradient(ellipse at 40% 40%, ${C.surface3}, ${C.bg})` }}>
+            {order.archivoDiseno?.type?.startsWith("image/") && order.archivoDiseno?.dataUrl
+              ? <img src={order.archivoDiseno.dataUrl} alt="" className="w-full h-full object-contain" />
+              : <JerseyMockup colors={order.colores || ["#888"]} tipoPrenda={order.tipoPrenda} />
+            }
           </div>
           <div className="flex gap-1.5">{order.colores?.map((c, i) => <div key={i} className="w-5 h-5 rounded-md" style={{ background: c, border: `1px solid rgba(255,255,255,0.08)` }} />)}</div>
           {order.archivoDiseno && <Paperclip size={11} style={{ color: C.accent }} />}
@@ -2307,7 +2319,7 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
         }}>
           {/* Sticky Header */}
           <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
-            <button onClick={onClose} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all hover:bg-white/5" style={{ color: C.textDim }}>
+            <button onClick={onClose} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-bold transition-all hover:bg-white/5" style={{ color: C.accent }}>
               <ArrowLeft size={14} /> Volver
             </button>
             <span className="text-[10.5px] font-black" style={{ color: C.textMute, fontFamily: "'JetBrains Mono', monospace" }}>{d.id}</span>
@@ -2892,6 +2904,7 @@ const Planillas = ({ orders, setOrders, empresas, pendingPlanillaOrderId, clearP
 function BerastoreSystem() {
   const [page, setPage] = useState("inicio");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [orders, setOrders] = usePersistedState("lpsport:orders:v8", seedOrders);
   const [customers] = usePersistedState("lpsport:customers:v8", seedCustomers);
   const [designs, setDesigns] = usePersistedState("lpsport:designs:v8", seedDesigns);
@@ -3039,9 +3052,14 @@ function BerastoreSystem() {
           .kanban-wrap { overflow-x: auto; padding-bottom: 1rem; }
           .kanban-wrap > div { min-width: 640px; }
         }
+        /* ── Desktop sidebar collapse ── */
+        @media (min-width: 768px) {
+          .lp-sidebar { transition: width 280ms cubic-bezier(.4,0,.2,1), opacity 280ms; }
+          .lp-sidebar.lp-sidebar-collapsed { width: 0; overflow: hidden; opacity: 0; border-right: none !important; }
+        }
       `}</style>
 
-      <Sidebar page={page} setPage={setPage} orders={orders} empresas={empresas} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar page={page} setPage={setPage} orders={orders} empresas={empresas} open={sidebarOpen} onClose={() => setSidebarOpen(false)} collapsed={sidebarCollapsed} />
       <ToastContainer />
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
@@ -3053,6 +3071,7 @@ function BerastoreSystem() {
           searchRef={searchInputRef}
           searchPlaceholder={pageTitles[page].placeholder}
           onMenuToggle={() => setSidebarOpen(s => !s)}
+          onSidebarToggle={() => setSidebarCollapsed(s => !s)}
           action={null}
         />
         <div className="fade-in" key={page}>
