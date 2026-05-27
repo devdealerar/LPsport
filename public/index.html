@@ -2386,6 +2386,8 @@ const DetalleDisenoDrawer = ({ design: d, onClose, onDelete, customers, orders }
             <ArrowLeft size={15} /> Volver
           </button>
           <Btn variant="danger" icon={Trash2} onClick={() => onDelete(d.id)}>Eliminar diseño</Btn>
+        </div>
+      </div>
       {lightbox && <Lightbox archivo={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
